@@ -7,9 +7,12 @@ Created by Chathunga
 import os
 import sys
 import shutil
+import logging
 import subprocess
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+
+logger = logging.getLogger("AirBridge.GUI")
 
 from gui.qt_compat import QtCore, QtGui, QtWidgets, Signal, Slot
 from gui.tray_icon import AirBridgeTrayIcon
@@ -18,6 +21,7 @@ from core.config import (
     APP_NAME,
     APP_SUBTITLE,
     APP_VERSION,
+    APP_USER_MODEL_ID,
     CREATOR,
     DOWNLOADS_DIR,
     ASSETS_DIR,
