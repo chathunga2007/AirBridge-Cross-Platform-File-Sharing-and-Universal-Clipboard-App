@@ -40,6 +40,23 @@ AirBridge is a high-performance, zero-cloud, privacy-first local network hub tha
 - Stream massive 1080p/4K movie files (`.mp4`, `.mkv`, `.mov`) or audio without filling up iPhone storage.
 - Full HTTP 206 Partial Content Range-Request support allows the native iPhone Safari `<video>` player to scrub, seek, and buffer smoothly without downloading the file.
 
+### 7. 🚀 Turbo 10GB+ Streaming Transfer Engine
+- Ultra-optimized 4MB chunked async stream writer (`CHUNK_SIZE = 4*1024*1024`) direct to disk.
+- Capable of moving multi-gigabyte (10GB+) ISOs, raw video shoots, and massive zip archives at local line rate without RAM saturation or browser timeouts.
+- Real-time speedometer displaying MB/s transfer velocity, transferred byte count, and dynamic ETA calculations.
+
+### 8. 📡 Active Fleet Radar & Device Profiling
+- Real-time live connected devices radar: view device platform (iOS / Android / Desktop), custom nicknames, IP addresses, and ping latency.
+- Desktop UI features a real-time Connected Fleet sidebar panel; Mobile PWA features a glassmorphism Network Hub modal with customizable device nicknames.
+
+### 9. 📝 Quick Notes & Sticky Links Beam
+- Instant note and link transmission across devices with 1-click copy and auto-link opening.
+- Synchronized across the entire fleet in sub-10 milliseconds via WebSocket broadcast.
+
+### 10. 🔊 Web Audio API Synthesized Cyber Chimes
+- 100% zero-asset, procedural audio cues generated entirely via the browser's Web Audio API (`AudioContext`).
+- Distinct harmonic chimes for device connection, upload completion, quick note reception, and screenshot beaming.
+
 ---
 
 ## 🛠️ System Architecture
