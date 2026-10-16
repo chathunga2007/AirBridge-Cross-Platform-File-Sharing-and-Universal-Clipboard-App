@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>AirBridge • Cross-Device Hub</title>
+  
+  <!-- iOS Safari PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AirBridge">
+  <link rel="apple-touch-icon" href="/assets/icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/AirBridge-Icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="icon" type="image/png" href="/assets/AirBridge-Icon.png">
+
+  <!-- Modern Typography & Tailwind CSS -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+            },
+            accent: {
+              500: '#6366f1',
+              600: '#4f46e5',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* iOS Momentum Scrolling & Safe Area handling */
+    body {
+      -webkit-font-smoothing: antialiased;
+      -webkit-touch-callout: none;
+      user-select: none;
+      background-color: #0b0f19;
+      color: #f8fafc;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+      min-height: 100vh;
+    }
+
+    /* Glassmorphism Styles */
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .glass-panel-elevated {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .glass-input {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 9999px;
+    }
+
+    /* Smooth Tab Transitions */
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .tab-content.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Pulsing Status Dot */
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.15); }
+    }
+    .status-pulse {
+      animation: pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen selection:bg-brand-500 selection:text-white">
+
+  <!-- TOP APP BAR -->
+  <header class="sticky top-0 z-40 glass-panel border-b border-slate-800/80 px-4 py-3">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-2.5">
+        <img src="/assets/AirBridge-Icon.png" alt="AirBridge" class="w-8 h-8 rounded-xl shadow-lg ring-1 ring-cyan-500/30">
+        <div>
+          <div class="flex items-center space-x-1.5">
+            <span class="font-extrabold text-base tracking-tight bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-300 bg-clip-text text-transparent">AirBridge</span>
+            <span class="text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800/50">PRO</span>
+          </div>
+          <p class="text-[10px] text-slate-400 leading-none">by Chathunga</p>
+        </div>
+      </div>
+
+      <!-- Live Connection Pill -->
+      <div id="statusPill" class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full glass-panel-elevated text-xs">
+        <span id="statusDot" class="w-2 h-2 rounded-full bg-emerald-400 status-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
+        <span id="statusText" class="font-medium text-slate-300">Connected</span>
+        <span id="pingBadge" class="text-[10px] font-mono text-cyan-400 pl-1 border-l border-slate-700">12ms</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN SCROLLABLE CONTENT -->
+  <main class="flex-1 max-w-md w-full mx-auto p-4 space-y-4 pb-28">
+
+    <!-- TAB 1: TRANSFER (AIRDROP) -->
+    <section id="tab-transfer" class="tab-content active space-y-4">
+      
+      <!-- UPLOAD HERO CARD -->
+      <div class="glass-panel-elevated rounded-2xl p-5 border border-cyan-500/20 shadow-xl relative overflow-hidden">
+        <div class="absolute -right-10 -top-10 w-36 h-36 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i data-lucide="send" class="w-5 h-5 text-cyan-400"></i>
+              Send to Windows PC
+            </h2>
+            <p class="text-xs text-slate-400">Direct high-speed LAN transfer to ~/Downloads</p>
+          </div>
+          <span class="text-xs font-mono px-2 py-0.5 rounded-md bg-slate-800/80 text-cyan-300 border border-slate-700">
+            Auto .HEIC ➔ .JPG
+          </span>
+        </div>
+
+        <!-- Hidden File Inputs -->
+        <input type="file" id="photoInput" multiple accept="image/*,video/*" class="hidden">
+        <input type="file" id="fileInput" multiple accept="*/*" class="hidden">
+
+        <!-- Action Buttons -->
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <button onclick="document.getElementById('photoInput').click()" 
+                  class="flex flex-col items-center justify-center p-3.5 rounded-xl bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700/80 hover:border-cyan-500/50 active:scale-95 transition">
+            <div class="w-10 h-10 rounded-xl bg-cyan-500/15 flex items-center justify-center mb-2 text-cyan-400">
+              <i data-lucide="image" class="w-5 h-5"></i>
+            </div>
+            <span class="text-xs font-semibold text-white">Photos & Videos</span>
+            <span class="text-[10px] text-slate-400">Camera Roll</span>
+          </button>
+
+          <button onclick="document.getElementById('fileInput').click()" 
+                  class="flex flex-col items-center justify-center p-3.5 rounded-xl bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700/80 hover:border-cyan-500/50 active:scale-95 transition">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center mb-2 text-indigo-400">
+              <i data-lucide="file-up" class="w-5 h-5"></i>
+            </div>
+            <span class="text-xs font-semibold text-white">Files & Documents</span>
+            <span class="text-[10px] text-slate-400">Browse Files</span>
+          </button>
+        </div>
+
+        <!-- Selected Queue & Progress Container -->
+        <div id="uploadQueueContainer" class="hidden space-y-2 pt-2 border-t border-slate-800">
+          <div class="flex items-center justify-between text-xs">
+            <span id="queueCount" class="font-semibold text-slate-300">0 items selected</span>
+            <span id="queueTotalSize" class="font-mono text-cyan-400">0 MB</span>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="w-full bg-slate-900 rounded-full h-2.5 overflow-hidden border border-slate-800">
+            <div id="uploadProgressBar" class="bg-gradient-to-r from-cyan-500 to-indigo-500 h-2.5 rounded-full w-0 transition-all duration-150"></div>
+          </div>
+          <div class="flex justify-between text-[11px] text-slate-400">
+            <span id="uploadStatusText">Ready</span>
+            <span id="uploadSpeed" class="font-mono text-cyan-300">-- MB/s</span>
+          </div>
+
+          <!-- Upload Execute Button -->
+          <button id="startUploadBtn" onclick="executeUpload()" 
+                  class="w-full mt-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold shadow-lg shadow-cyan-500/25 active:scale-98 transition flex items-center justify-center gap-2">
+            <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+            Transfer to PC Now
+          </button>
+        </div>
+      </div>
+
+      <!-- RECEIVED FROM PC CARD -->
+      <div class="glass-panel rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+            <i data-lucide="inbox" class="w-4 h-4 text-cyan-400"></i>
+            Files Shared from Windows PC
+          </h3>
+          <button onclick="fetchSharedFiles()" class="text-xs text-cyan-400 hover:text-cyan-300 p-1">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <div id="receivedFilesList" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+          <!-- Dynamically populated -->
+          <div class="text-center py-8 text-slate-500 text-xs">
+            <i data-lucide="folder-clock" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
+            No files received yet. Drop files on your PC to share!
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: CLIPBOARD (UNIVERSAL TWO-WAY) -->
+    <section id="tab-clipboard" class="tab-content space-y-4">
+      
+      <!-- PC CLIPBOARD MIRROR CARD -->
+      <div class="glass-panel-elevated rounded-2xl p-4 space-y-3 border border-indigo-500/20">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+              <i data-lucide="monitor" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white">Windows PC Clipboard</h3>
+              <p class="text-[11px] text-slate-400">Synced in real-time from PC</p>
+            </div>
+          </div>
+          <button id="copyToPhoneBtn" onclick="copyPcClipboardToPhone()" 
+                  class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition shadow-md shadow-indigo-600/30">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            <span>Copy to iPhone</span>
+          </button>
+        </div>
+
+        <div class="relative">
+          <textarea id="pcClipboardView" readonly rows="4" 
+                    placeholder="Waiting for clipboard sync from PC..."
+                    class="w-full rounded-xl glass-input p-3 text-xs font-mono text-slate-200 resize-none focus:outline-none"></textarea>
+          <div class="flex items-center justify-between mt-1 text-[10px] text-slate-400">
+            <span id="clipboardSourceBadge">Source: PC</span>
+            <span id="clipboardCharCount">0 chars</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SEND TO PC CLIPBOARD CARD -->
+      <div class="glass-panel rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+              <i data-lucide="smartphone" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white">Send to PC Clipboard</h3>
+              <p class="text-[11px] text-slate-400">Instantly injected into Windows</p>
+            </div>
+          </div>
+          <button onclick="pasteFromPhoneToInput()" class="text-xs text-cyan-400 hover:text-cyan-300 font-medium">
+            Paste from Phone
+          </button>
+        </div>
+
+        <textarea id="phoneClipboardInput" rows="4" 
+                  placeholder="Type or paste text/links here to beam to Windows..."
+                  class="w-full rounded-xl glass-input p-3 text-xs font-sans text-white focus:outline-none focus:border-cyan-500/50"></textarea>
+
+        <button onclick="sendClipboardToPC()" 
+                class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-cyan-500/25 active:scale-98 transition flex items-center justify-center gap-2">
+          <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+          Inject into Windows Clipboard
+        </button>
+      </div>
+    </section>
+
+    <!-- TAB 3: SCREEN BEAM -->
+    <section id="tab-screen" class="tab-content space-y-4">
+      <div class="glass-panel-elevated rounded-2xl p-4 space-y-3 border border-cyan-500/20">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i data-lucide="camera" class="w-4 h-4 text-cyan-400"></i>
+              Instant PC Screen Beam
+            </h3>
+            <p class="text-xs text-slate-400">View Windows monitor live on your iPhone</p>
+          </div>
+          <button id="beamScreenBtn" onclick="requestScreenshotBeam()" 
+                  class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold shadow-md shadow-cyan-500/30 active:scale-95 transition flex items-center gap-1.5">
+            <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+            <span>Beam Now</span>
+          </button>
+        </div>
+
+        <!-- Preview Area -->
+        <div class="relative w-full aspect-video rounded-xl bg-slate-900 border border-slate-800 overflow-hidden flex items-center justify-center">
+          <img id="screenshotPreviewImg" src="" alt="PC Screenshot" class="hidden w-full h-full object-contain">
+          <div id="screenshotEmptyState" class="text-center p-4 text-slate-500">
+            <i data-lucide="monitor" class="w-10 h-10 mx-auto mb-2 opacity-30"></i>
+            <p class="text-xs">Tap "Beam Now" to capture Windows screen</p>
+          </div>
+          <div id="screenshotLoading" class="hidden absolute inset-0 bg-slate-950/70 backdrop-blur-sm flex flex-col items-center justify-center text-cyan-400 space-y-2">
+            <div class="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+            <span class="text-xs font-semibold">Capturing Windows Display...</span>
+          </div>
+        </div>
+
+        <!-- Save / View Options -->
+        <div id="screenshotActions" class="hidden flex items-center justify-between pt-1">
+          <span id="screenshotTime" class="text-[11px] text-slate-400 font-mono">--:--:--</span>
+          <div class="flex gap-2">
+            <a id="screenshotDownloadLink" href="#" download="airbridge_screenshot.jpg" 
+               class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center gap-1.5">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              <span>Save Photo</span>
+            </a>
+            <button onclick="openScreenshotFullscreen()" 
+                    class="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold text-white flex items-center gap-1.5">
+              <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+              <span>Fullscreen</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: MEDIA STREAM (STORAGE-FREE VIDEO) -->
+    <section id="tab-stream" class="tab-content space-y-4">
+      <div class="glass-panel-elevated rounded-2xl p-4 space-y-3 border border-indigo-500/20">
+        <div>
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i data-lucide="film" class="w-4 h-4 text-indigo-400"></i>
+            Storage-Free LAN Video Player
+          </h3>
+          <p class="text-xs text-slate-400">Stream high-res movies from PC without saving to iPhone</p>
+        </div>
+
+        <!-- HTML5 Video Player with Range Seek support -->
+        <div class="w-full aspect-video rounded-xl bg-black border border-slate-800 overflow-hidden relative shadow-lg">
+          <video id="lanVideoPlayer" controls playsinline preload="metadata" 
+                 class="w-full h-full object-contain">
+            <source id="videoSource" src="" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+        </div>
+
+        <div id="nowPlayingTitle" class="text-xs font-mono text-cyan-300 truncate">
+          Select a video from the queue below
+        </div>
+
+        <!-- Stream Queue -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+          <div class="flex items-center justify-between text-xs text-slate-300 font-semibold">
+            <span>PC Stream Queue</span>
+            <button onclick="fetchStreamQueue()" class="text-cyan-400 hover:text-cyan-300">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+          <div id="streamQueueList" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+            <div class="text-center py-6 text-slate-500 text-xs">
+              <i data-lucide="clapperboard" class="w-7 h-7 mx-auto mb-1.5 opacity-30"></i>
+              No media queued on PC yet. Drag a video into the AirBridge PC app!
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER BRANDING -->
+    <footer class="pt-6 pb-2 text-center text-xs text-slate-500 space-y-1">
+      <div class="flex items-center justify-center gap-1.5 font-medium text-slate-400">
+        <span>AirBridge</span>
+        <span>•</span>
+        <span>Created by <strong class="text-slate-300">Chathunga</strong></span>
+      </div>
+      <p class="text-[10px] text-slate-600">Cross-Device AirDrop & Clipboard Engine</p>
+    </footer>
+
+  </main>
+
+  <!-- BOTTOM NAVIGATION BAR (iOS TAB BAR STYLE) -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 glass-panel border-t border-slate-800/80 px-4 py-2">
+    <div class="max-w-md mx-auto grid grid-cols-4 gap-1">
+      
+      <button onclick="switchTab('transfer')" id="nav-transfer" 
+              class="nav-tab active flex flex-col items-center justify-center py-1 rounded-xl text-cyan-400 transition">
+        <i data-lucide="send" class="w-5 h-5 mb-0.5"></i>
+        <span class="text-[10px] font-semibold">Transfer</span>
+      </button>
+
+      <button onclick="switchTab('clipboard')" id="nav-clipboard" 
+              class="nav-tab flex flex-col items-center justify-center py-1 rounded-xl text-slate-400 hover:text-slate-200 transition">
+        <i data-lucide="clipboard-copy" class="w-5 h-5 mb-0.5"></i>
+        <span class="text-[10px] font-semibold">Clipboard</span>
+      </button>
+
+      <button onclick="switchTab('screen')" id="nav-screen" 
+              class="nav-tab flex flex-col items-center justify-center py-1 rounded-xl text-slate-400 hover:text-slate-200 transition">
+        <i data-lucide="screen-share" class="w-5 h-5 mb-0.5"></i>
+        <span class="text-[10px] font-semibold">Screen</span>
+      </button>
+
+      <button onclick="switchTab('stream')" id="nav-stream" 
+              class="nav-tab flex flex-col items-center justify-center py-1 rounded-xl text-slate-400 hover:text-slate-200 transition">
+        <i data-lucide="play-circle" class="w-5 h-5 mb-0.5"></i>
+        <span class="text-[10px] font-semibold">Stream</span>
+      </button>
+
+    </div>
+  </nav>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed top-16 left-0 right-0 z-50 pointer-events-none flex flex-col items-center px-4 space-y-2"></div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // State
+    let socket = null;
+    let pingInterval = null;
+    let selectedFiles = [];
+    let pingStart = 0;
+
+    // Tab Switching
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(el => {
+        el.classList.remove('text-cyan-400', 'active');
+        el.classList.add('text-slate-400');
+      });
+
+      const targetTab = document.getElementById(`tab-${tabId}`);
+      const targetNav = document.getElementById(`nav-${tabId}`);
+      if (targetTab) targetTab.classList.add('active');
+      if (targetNav) {
+        targetNav.classList.remove('text-slate-400');
+        targetNav.classList.add('text-cyan-400', 'active');
+      }
+
+      // Tab specific triggers
+      if (tabId === 'clipboard') fetchClipboard();
+      if (tabId === 'stream') fetchStreamQueue();
+      if (tabId === 'transfer') fetchSharedFiles();
+    }
+
+    // Toast Alert
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const bg = type === 'success' ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200' :
+                 type === 'error' ? 'bg-rose-950/90 border-rose-500/50 text-rose-200' :
+                 'bg-slate-900/90 border-cyan-500/40 text-cyan-200';
+      toast.className = `glass-panel-elevated pointer-events-auto border px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2 transform transition-all duration-300 translate-y-[-10px] opacity-0 ${bg}`;
+      toast.innerHTML = `<span>${message}</span>`;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-[-10px]', 'opacity-0');
+        toast.classList.add('translate-y-0', 'opacity-100');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-[-10px]', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // WebSocket Management
+    function initWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+      socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        updateConnectionStatus(true);
+        startHeartbeat();
+      };
+
+      socket.onclose = () => {
+        updateConnectionStatus(false);
+        stopHeartbeat();
+        setTimeout(initWebSocket, 3000);
+      };
+
+      socket.onerror = (err) => {
+        console.error("WS error:", err);
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleWebSocketMessage(data);
+        } catch (e) {
+          console.error("Failed to parse WS msg:", e);
+        }
+      };
+    }
+
+    function handleWebSocketMessage(msg) {
+      if (msg.type === 'pong') {
+        const latency = Math.round(performance.now() - pingStart);
+        document.getElementById('pingBadge').innerText = `${latency}ms`;
+      }
+      else if (msg.type === 'clipboard_update') {
+        document.getElementById('pcClipboardView').value = msg.text || '';
+        document.getElementById('clipboardCharCount').innerText = `${(msg.text || '').length} chars`;
+        document.getElementById('clipboardSourceBadge').innerText = `Source: ${msg.source || 'PC'}`;
+        showToast('📋 New Clipboard received from PC', 'info');
+      }
+      else if (msg.type === 'file_shared') {
+        fetchSharedFiles();
+        showToast(`📥 PC shared: ${msg.file.filename}`, 'success');
+      }
+      else if (msg.type === 'screenshot_beamed') {
+        displayScreenshot(msg.url, msg.preview);
+        switchTab('screen');
+        showToast('📸 PC Screenshot beamed!', 'success');
+      }
+      else if (msg.type === 'stream_queue_updated') {
+        fetchStreamQueue();
+      }
+      else if (msg.type === 'device_status') {
+        // Updated connected devices
+      }
+    }
+
+    function startHeartbeat() {
+      stopHeartbeat();
+      pingInterval = setInterval(() => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          pingStart = performance.now();
+          socket.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 5000);
+    }
+
+    function stopHeartbeat() {
+      if (pingInterval) clearInterval(pingInterval);
+    }
+
+    function updateConnectionStatus(isConnected) {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      const pill = document.getElementById('statusPill');
+
+      if (isConnected) {
+        dot.className = "w-2 h-2 rounded-full bg-emerald-400 status-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]";
+        text.innerText = "Connected";
+        text.className = "font-medium text-slate-200";
+      } else {
+        dot.className = "w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]";
+        text.innerText = "Reconnecting...";
+        text.className = "font-medium text-rose-300";
+        document.getElementById('pingBadge').innerText = "--";
+      }
+    }
+
+    // -------------------------------------------------------------
+    // FILE TRANSFER LOGIC
+    // -------------------------------------------------------------
+    const photoInput = document.getElementById('photoInput');
+    const fileInput = document.getElementById('fileInput');
+
+    function handleFileSelection(files) {
+      if (!files || files.length === 0) return;
+      selectedFiles = Array.from(files);
+
+      const container = document.getElementById('uploadQueueContainer');
+      const countEl = document.getElementById('queueCount');
+      const sizeEl = document.getElementById('queueTotalSize');
+
+      container.classList.remove('hidden');
+      countEl.innerText = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} queued`;
+
+      let totalBytes = 0;
+      selectedFiles.forEach(f => totalBytes += f.size);
+      sizeEl.innerText = formatBytes(totalBytes);
+
+      document.getElementById('uploadProgressBar').style.width = '0%';
+      document.getElementById('uploadStatusText').innerText = 'Ready to transfer';
+      document.getElementById('uploadSpeed').innerText = '-- MB/s';
+    }
+
+    photoInput.addEventListener('change', (e) => handleFileSelection(e.target.files));
+    fileInput.addEventListener('change', (e) => handleFileSelection(e.target.files));
+
+    function executeUpload() {
+      if (!selectedFiles || selectedFiles.length === 0) return;
+
+      const formData = new FormData();
+      selectedFiles.forEach(f => formData.append('files', f));
+
+      const xhr = new XMLHttpRequest();
+      const startTime = performance.now();
+      const startBtn = document.getElementById('startUploadBtn');
+      const bar = document.getElementById('uploadProgressBar');
+      const statusText = document.getElementById('uploadStatusText');
+      const speedText = document.getElementById('uploadSpeed');
+
+      startBtn.disabled = true;
+      startBtn.classList.add('opacity-50');
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          bar.style.width = `${percent}%`;
+
+          const elapsedSec = (performance.now() - startTime) / 1000;
+          if (elapsedSec > 0.1) {
+            const mbps = ((e.loaded / (1024 * 1024)) / elapsedSec).toFixed(1);
+            speedText.innerText = `${mbps} MB/s`;
+          }
+          statusText.innerText = `Uploading: ${percent}%`;
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        startBtn.disabled = false;
+        startBtn.classList.remove('opacity-50');
+        if (xhr.status === 200) {
+          bar.style.width = '100%';
+          statusText.innerText = 'Transferred Successfully!';
+          showToast('🚀 Files saved to Windows PC Downloads!', 'success');
+          // Reset after delay
+          setTimeout(() => {
+            document.getElementById('uploadQueueContainer').classList.add('hidden');
+            photoInput.value = '';
+            fileInput.value = '';
+            selectedFiles = [];
+          }, 2500);
+        } else {
+          statusText.innerText = 'Upload failed';
+          showToast('Failed to upload files', 'error');
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        startBtn.disabled = false;
+        startBtn.classList.remove('opacity-50');
+        statusText.innerText = 'Network error during upload';
+        showToast('Upload network error', 'error');
+      });
+
+      xhr.open('POST', '/api/upload');
+      xhr.send(formData);
+    }
+
+    async function fetchSharedFiles() {
+      try {
+        const res = await fetch('/api/files');
+        const data = await res.json();
+        renderSharedFiles(data.files || []);
+      } catch (e) {
+        console.error("fetchSharedFiles error:", e);
+      }
+    }
+
+    function renderSharedFiles(files) {
+      const list = document.getElementById('receivedFilesList');
+      if (!files || files.length === 0) {
+        list.innerHTML = `
+          <div class="text-center py-8 text-slate-500 text-xs">
+            <i data-lucide="folder-clock" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
+            No files received yet. Drop files on your PC to share!
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      list.innerHTML = files.map(f => `
+        <div class="glass-panel p-2.5 rounded-xl flex items-center justify-between border border-slate-800 hover:border-slate-700 transition">
+          <div class="flex items-center space-x-2.5 min-w-0 pr-2">
+            <div class="w-9 h-9 rounded-lg bg-slate-800 flex-shrink-0 flex items-center justify-center text-cyan-400 border border-slate-700/50">
+              <i data-lucide="${f.is_image ? 'image' : 'file'}" class="w-4 h-4"></i>
+            </div>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold text-slate-200 truncate">${f.filename}</p>
+              <div class="flex items-center gap-1.5 text-[10px] text-slate-400">
+                <span>${formatBytes(f.filesize)}</span>
+                ${f.converted_from_heic ? '<span class="text-emerald-400">• HEIC converted</span>' : ''}
+              </div>
+            </div>
+          </div>
+          <a href="${f.url}" download="${f.filename}" 
+             class="px-2.5 py-1.5 rounded-lg bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600 hover:text-white border border-cyan-500/30 text-xs font-medium flex items-center gap-1 active:scale-95 transition">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span>Get</span>
+          </a>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    // -------------------------------------------------------------
+    // CLIPBOARD LOGIC
+    // -------------------------------------------------------------
+    async function fetchClipboard() {
+      try {
+        const res = await fetch('/api/clipboard');
+        const data = await res.json();
+        const text = data.text || '';
+        document.getElementById('pcClipboardView').value = text;
+        document.getElementById('clipboardCharCount').innerText = `${text.length} chars`;
+        document.getElementById('clipboardSourceBadge').innerText = `Source: ${data.source || 'PC'}`;
+      } catch (e) {
+        console.error("Clipboard fetch failed:", e);
+      }
+    }
+
+    async function copyPcClipboardToPhone() {
+      const text = document.getElementById('pcClipboardView').value;
+      if (!text) {
+        showToast('Clipboard is empty', 'error');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('✅ Copied to iPhone Clipboard!', 'success');
+      } catch (e) {
+        // Fallback selection
+        const textarea = document.getElementById('pcClipboardView');
+        textarea.select();
+        document.execCommand('copy');
+        showToast('Copied to iPhone!', 'success');
+      }
+    }
+
+    async function pasteFromPhoneToInput() {
+      try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          const text = await navigator.clipboard.readText();
+          document.getElementById('phoneClipboardInput').value = text;
+        } else {
+          showToast('Paste directly into the box', 'info');
+        }
+      } catch (e) {
+        showToast('Tap and hold to paste', 'info');
+      }
+    }
+
+    async function sendClipboardToPC() {
+      const text = document.getElementById('phoneClipboardInput').value;
+      if (!text.trim()) {
+        showToast('Enter some text to beam to PC', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/clipboard', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('⚡ Injected into Windows Clipboard!', 'success');
+          document.getElementById('phoneClipboardInput').value = '';
+        } else {
+          showToast('Failed to sync clipboard', 'error');
+        }
+      } catch (e) {
+        showToast('Network error syncing clipboard', 'error');
+      }
+    }
+
+    // -------------------------------------------------------------
+    // SCREEN BEAM LOGIC
+    // -------------------------------------------------------------
+    async function requestScreenshotBeam() {
+      const loading = document.getElementById('screenshotLoading');
+      const empty = document.getElementById('screenshotEmptyState');
+      loading.classList.remove('hidden');
+      empty.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/screenshot', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          displayScreenshot(data.url, data.preview);
+          showToast('📸 Windows Desktop captured!', 'success');
+        } else {
+          showToast('Failed to capture screen', 'error');
+        }
+      } catch (e) {
+        showToast('Error requesting screen beam', 'error');
+      } finally {
+        loading.classList.add('hidden');
+      }
+    }
+
+    function displayScreenshot(url, preview) {
+      const img = document.getElementById('screenshotPreviewImg');
+      const empty = document.getElementById('screenshotEmptyState');
+      const actions = document.getElementById('screenshotActions');
+      const link = document.getElementById('screenshotDownloadLink');
+      const time = document.getElementById('screenshotTime');
+
+      const srcUrl = preview || `${url}?t=${Date.now()}`;
+      img.src = srcUrl;
+      img.classList.remove('hidden');
+      empty.classList.add('hidden');
+      actions.classList.remove('hidden');
+      link.href = srcUrl;
+      time.innerText = new Date().toLocaleTimeString();
+    }
+
+    function openScreenshotFullscreen() {
+      const img = document.getElementById('screenshotPreviewImg');
+      if (img.src) {
+        window.open(img.src, '_blank');
+      }
+    }
+
+    // -------------------------------------------------------------
+    // VIDEO STREAM LOGIC (HTTP RANGE 206)
+    // -------------------------------------------------------------
+    async function fetchStreamQueue() {
+      try {
+        const res = await fetch('/api/stream/queue');
+        const data = await res.json();
+        renderStreamQueue(data.queue || []);
+      } catch (e) {
+        console.error("Stream queue error:", e);
+      }
+    }
+
+    function renderStreamQueue(queue) {
+      const list = document.getElementById('streamQueueList');
+      if (!queue || queue.length === 0) {
+        list.innerHTML = `
+          <div class="text-center py-6 text-slate-500 text-xs">
+            <i data-lucide="clapperboard" class="w-7 h-7 mx-auto mb-1.5 opacity-30"></i>
+            No media queued on PC yet. Drag a video into the AirBridge PC app!
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      list.innerHTML = queue.map(item => `
+        <div onclick="playStreamItem('${item.id}', '${escapeHtml(item.filename)}')" 
+             class="glass-panel p-2.5 rounded-xl flex items-center justify-between border border-slate-800 hover:border-indigo-500/50 cursor-pointer active:scale-98 transition">
+          <div class="flex items-center space-x-2.5 min-w-0 pr-2">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex-shrink-0 flex items-center justify-center text-indigo-400">
+              <i data-lucide="play" class="w-4 h-4"></i>
+            </div>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold text-slate-200 truncate">${item.filename}</p>
+              <span class="text-[10px] text-slate-400 font-mono">${formatBytes(item.filesize)}</span>
+            </div>
+          </div>
+          <span class="text-xs text-indigo-400 font-semibold flex items-center gap-1">
+            <span>Play</span>
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+          </span>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function playStreamItem(fileId, filename) {
+      const player = document.getElementById('lanVideoPlayer');
+      const title = document.getElementById('nowPlayingTitle');
+      title.innerText = `Now Streaming: ${filename}`;
+      player.src = `/api/stream/${fileId}`;
+      player.load();
+      player.play().catch(e => console.log("Autoplay prevented:", e));
+      showToast(`🎬 Streaming ${filename}`, 'info');
+    }
+
+    // Helpers
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+      );
+    }
+
+    // On Load
+    window.addEventListener('DOMContentLoaded', () => {
+      initWebSocket();
+      fetchSharedFiles();
+    });
+  </script>
+</body>
+</html>
