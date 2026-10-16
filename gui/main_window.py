@@ -38,6 +38,7 @@ class BridgeSignals(QtCore.QObject):
     device_count_changed = Signal(int)
     devices_updated = Signal(list)
     quick_note_received = Signal(str, str)
+    browse_stream_requested = Signal()
     log_message = Signal(str, str)
 
 
@@ -407,12 +408,14 @@ class MainWindow(QtWidgets.QMainWindow):
         server_module.desktop_callbacks["on_device_connected"] = self._threadsafe_on_device_connected
         server_module.desktop_callbacks["on_devices_updated"] = self._threadsafe_on_devices_updated
         server_module.desktop_callbacks["on_quick_note_received"] = self._threadsafe_on_quick_note_received
+        server_module.desktop_callbacks["on_browse_stream_requested"] = self._threadsafe_on_browse_stream_requested
 
         self.signals.file_received.connect(self._handle_file_received)
         self.signals.clipboard_updated.connect(self._handle_clipboard_updated)
         self.signals.device_count_changed.connect(self._handle_device_count_changed)
         self.signals.devices_updated.connect(self._handle_devices_updated)
         self.signals.quick_note_received.connect(self._handle_quick_note_received)
+        self.signals.browse_stream_requested.connect(self._select_stream_video)
         self.signals.log_message.connect(self._handle_log_message)
 
     def _threadsafe_on_file_received(self, file_data: Dict[str, Any]):
@@ -430,12 +433,15 @@ class MainWindow(QtWidgets.QMainWindow):
     def _threadsafe_on_quick_note_received(self, text: str, sender: str):
         self.signals.quick_note_received.emit(text, sender)
 
+    def _threadsafe_on_browse_stream_requested(self):
+        self.signals.browse_stream_requested.emit()
+
     def showEvent(self, event: QtGui.QShowEvent):
         super().showEvent(event)
         self._apply_windows_native_icon()
 
     def _apply_windows_native_icon(self):
-        """Force Windows Taskbar to display custom icon at the OS HWND level."""
+        """Force Windows Taskbar to display custom icon via Shell Property Store & Win32 API."""
         if sys.platform != "win32":
             return
         try:
@@ -443,17 +449,50 @@ class MainWindow(QtWidgets.QMainWindow):
             ico_path = ASSETS_DIR / "icon.ico"
             if not ico_path.exists():
                 return
+
+            hwnd = int(self.winId())
+
+            # 1. Bind Windows Shell Property Store for Windows 11 Taskbar Grouping
+            try:
+                from win32com.propsys import propsys, pscon
+                store = propsys.SHGetPropertyStoreForWindow(hwnd, propsys.IID_IPropertyStore)
+                store.SetValue(pscon.PKEY_AppUserModel_ID, propsys.PROPVARIANTType(APP_USER_MODEL_ID))
+                store.SetValue(pscon.PKEY_AppUserModel_RelaunchIconResource, propsys.PROPVARIANTType(f"{ico_path.resolve()},0"))
+                store.SetValue(pscon.PKEY_AppUserModel_RelaunchDisplayNameResource, propsys.PROPVARIANTType("AirBridge"))
+                store.Commit()
+            except Exception as ex_prop:
+                logger.debug(f"Window property store binding note: {ex_prop}")
+
+            # 2. Win32 WM_SETICON for Big (48x48) & Small (16x16) taskbar/titlebar icons
             IMAGE_ICON = 1
             LR_LOADFROMFILE = 0x0010
             h_icon_big = ctypes.windll.user32.LoadImageW(
-                None, str(ico_path.resolve()), IMAGE_ICON, 0, 0, LR_LOADFROMFILE
+                None, str(ico_path.resolve()), IMAGE_ICON, 48, 48, LR_LOADFROMFILE
             )
+            h_icon_small = ctypes.windll.user32.LoadImageW(
+                None, str(ico_path.resolve()), IMAGE_ICON, 16, 16, LR_LOADFROMFILE
+            )
+
             if h_icon_big:
-                hwnd = int(self.winId())
                 ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 1, h_icon_big)
-                ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 0, h_icon_big)
-        except Exception:
-            pass
+            if h_icon_small:
+                ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 0, h_icon_small)
+
+            # 3. Stamp window class icon (GCLP_HICON = -14, GCLP_HICONSM = -34)
+            try:
+                try:
+                    SetClassLong = ctypes.windll.user32.SetClassLongPtrW
+                except AttributeError:
+                    SetClassLong = ctypes.windll.user32.SetClassLongW
+                if h_icon_big:
+                    SetClassLong(hwnd, -14, h_icon_big)
+                if h_icon_small:
+                    SetClassLong(hwnd, -34, h_icon_small)
+            except Exception:
+                pass
+
+        except Exception as e:
+            logger.debug(f"Native icon hook note: {e}")
 
     def _init_ui(self):
         central_widget = QtWidgets.QWidget()
@@ -938,6 +977,11 @@ class MainWindow(QtWidgets.QMainWindow):
             "AirBridge File Received",
             f"Saved '{file_data.get('filename')}' to Downloads/AirBridge"
         )
+        try:
+            import winsound
+            winsound.MessageBeep(winsound.MB_ICONASTERISK)
+        except Exception:
+            pass
 
     @Slot(str, str)
     def _handle_clipboard_updated(self, text: str, source: str):
@@ -946,6 +990,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status_lbl.setText(f"📋 Clipboard synced from {source}: '{preview}'")
         if source != "PC":
             self.tray.show_toast("AirBridge Universal Clipboard", f"Pasted from {source}: {preview}")
+            try:
+                import winsound
+                winsound.MessageBeep(winsound.MB_ICONASTERISK)
+            except Exception:
+                pass
 
     @Slot(int)
     def _handle_device_count_changed(self, count: int):
