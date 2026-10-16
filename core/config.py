@@ -84,6 +84,7 @@ class AppSettings:
         self.shared_files: List[SharedFileItem] = []
         self.latest_screenshot_path: Optional[str] = None
         self.connected_devices_count: int = 0
+        self.connected_devices_list: List[Dict[str, Any]] = []
         self.last_clipboard_text: str = ""
         self.last_clipboard_source: str = "PC"
 
