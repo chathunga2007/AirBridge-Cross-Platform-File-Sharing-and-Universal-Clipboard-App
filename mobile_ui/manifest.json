@@ -1,0 +1,26 @@
+{
+  "name": "AirBridge Hub",
+  "short_name": "AirBridge",
+  "description": "Next-Gen Local Cross-Device AirDrop & Universal Clipboard Hub created by Chathunga",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/assets/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/AirBridge-Icon.png",
+      "sizes": "500x500",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["utilities", "productivity"]
+}
