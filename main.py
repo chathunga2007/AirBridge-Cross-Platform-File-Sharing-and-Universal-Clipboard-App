@@ -25,7 +25,7 @@ logger = logging.getLogger("AirBridge.Main")
 # 1. Set Windows AppUserModelID for Windows 11 Taskbar Icon & Toast Integration
 try:
     if sys.platform == "win32":
-        myappid = "chathunga.airbridge.app.1.0"
+        myappid = "chathunga.airbridge.hub.v2"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
         logger.info(f"Windows AppUserModelID set to '{myappid}'")
 except Exception as e:
@@ -80,15 +80,25 @@ ensure_icons()
 
 
 def ensure_shortcuts():
-    """Ensure Windows Start Menu & Desktop shortcuts exist with the custom AirBridge icon."""
+    """Ensure Windows Start Menu & Desktop shortcuts exist with the custom AirBridge icon and AppUserModelID."""
     if sys.platform != "win32":
         return
     try:
         import win32com.client
+        import shutil
         shell = win32com.client.Dispatch("WScript.Shell")
         base_dir = Path(__file__).resolve().parent
         ico_path = base_dir / "assets" / "icon.ico"
         main_py = base_dir / "main.py"
+
+        # Resolve pythonw.exe to prevent terminal window popup when clicking shortcut
+        py_dir = Path(sys.executable).parent
+        pyw_cand = py_dir / "pythonw.exe"
+        if not pyw_cand.exists():
+            which_pyw = shutil.which("pythonw.exe")
+            if which_pyw:
+                pyw_cand = Path(which_pyw)
+        target_exe = str(pyw_cand.resolve()) if pyw_cand.exists() else sys.executable
 
         # Start Menu Programs shortcut (forces Windows 11 Taskbar icon resolution)
         try:
@@ -96,12 +106,23 @@ def ensure_shortcuts():
             if programs_dir and os.path.exists(programs_dir):
                 lnk_programs = os.path.join(programs_dir, "AirBridge.lnk")
                 s2 = shell.CreateShortcut(lnk_programs)
-                s2.TargetPath = sys.executable
+                s2.TargetPath = target_exe
                 s2.Arguments = f'"{main_py}"'
                 s2.WorkingDirectory = str(base_dir)
                 s2.IconLocation = f"{ico_path.resolve()},0"
                 s2.Description = "AirBridge - Cross-Device Local Transfer Hub by Chathunga"
                 s2.Save()
+
+                # Bind System.AppUserModel.ID directly into shortcut property store
+                try:
+                    from win32com.propsys import propsys, pscon
+                    store = propsys.SHGetPropertyStoreFromParsingName(lnk_programs, None, 2, propsys.IID_IPropertyStore)
+                    propvar = propsys.PROPVARIANTType(APP_USER_MODEL_ID)
+                    store.SetValue(pscon.PKEY_AppUserModel_ID, propvar)
+                    store.Commit()
+                except Exception as ex_prop:
+                    logger.debug(f"Shortcut property store setup note: {ex_prop}")
+
                 logger.info("Windows Start Menu shortcut verified with custom icon.")
         except Exception as e:
             logger.debug(f"Start Menu shortcut setup note: {e}")
@@ -112,12 +133,21 @@ def ensure_shortcuts():
             if desktop_dir and os.path.exists(desktop_dir):
                 lnk_desktop = os.path.join(desktop_dir, "AirBridge.lnk")
                 s = shell.CreateShortcut(lnk_desktop)
-                s.TargetPath = sys.executable
+                s.TargetPath = target_exe
                 s.Arguments = f'"{main_py}"'
                 s.WorkingDirectory = str(base_dir)
                 s.IconLocation = f"{ico_path.resolve()},0"
                 s.Description = "AirBridge - Cross-Device Local Transfer Hub by Chathunga"
                 s.Save()
+
+                try:
+                    from win32com.propsys import propsys, pscon
+                    store_d = propsys.SHGetPropertyStoreFromParsingName(lnk_desktop, None, 2, propsys.IID_IPropertyStore)
+                    store_d.SetValue(pscon.PKEY_AppUserModel_ID, propsys.PROPVARIANTType(APP_USER_MODEL_ID))
+                    store_d.Commit()
+                except Exception:
+                    pass
+
                 logger.info("Windows Desktop shortcut verified with custom icon.")
         except Exception as e:
             logger.debug(f"Desktop shortcut setup note: {e}")
@@ -181,7 +211,7 @@ def main():
         app.setWindowIcon(QtGui.QIcon(str(png_path.resolve())))
 
     window = MainWindow()
-    window.show()
+    window.showMaximized()
     window._apply_windows_native_icon()
 
     logger.info("AirBridge GUI initialized and running.")
