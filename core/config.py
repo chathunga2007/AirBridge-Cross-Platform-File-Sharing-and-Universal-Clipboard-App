@@ -16,7 +16,7 @@ APP_NAME = "AirBridge"
 APP_SUBTITLE = "Local AirDrop & Universal Clipboard Hub"
 APP_VERSION = "1.0.0"
 CREATOR = "Chathunga"
-APP_USER_MODEL_ID = "chathunga.airbridge.app.1.0"
+APP_USER_MODEL_ID = "chathunga.airbridge.hub.v2"
 
 # Directories
 BASE_DIR = Path(__file__).resolve().parent.parent
