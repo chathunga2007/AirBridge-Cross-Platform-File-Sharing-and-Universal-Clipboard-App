@@ -7,7 +7,7 @@ Created by Chathunga
 import json
 import asyncio
 import logging
-from typing import Set, Dict, Any, Optional, Callable
+from typing import Set, Dict, Any, Optional, Callable, List
 from fastapi import WebSocket, WebSocketDisconnect
 from core.config import settings
 
@@ -15,59 +15,83 @@ logger = logging.getLogger("AirBridge.WebSocket")
 
 
 class ConnectionManager:
-    """Manages active WebSocket connections and broadcasts real-time events."""
+    """Manages active WebSocket connections and broadcasts real-time events with rich device metadata."""
 
     def __init__(self):
         self.active_connections: Set[WebSocket] = set()
         self.client_metadata: Dict[WebSocket, Dict[str, Any]] = {}
         # External GUI/System event callbacks
         self.on_device_count_changed: Optional[Callable[[int], None]] = None
+        self.on_devices_updated: Optional[Callable[[List[Dict[str, Any]]], None]] = None
         self.on_message_received: Optional[Callable[[Dict[str, Any]], None]] = None
+        self.on_quick_note_received: Optional[Callable[[str, str], None]] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def set_loop(self, loop: asyncio.AbstractEventLoop):
         self._loop = loop
 
+    def get_connected_devices_list(self) -> List[Dict[str, Any]]:
+        """Return clean list of all connected device objects."""
+        return list(self.client_metadata.values())
+
     async def connect(self, websocket: WebSocket, client_info: Optional[Dict[str, Any]] = None):
-        """Accept WebSocket connection and register client."""
+        """Accept WebSocket connection, register client and broadcast updated fleet list."""
         await websocket.accept()
         self.active_connections.add(websocket)
         self.client_metadata[websocket] = client_info or {
-            "device": "Unknown",
-            "connected_at": asyncio.get_event_loop().time(),
+            "id": f"device_{len(self.active_connections)}",
+            "name": "Unknown Device",
+            "ip": "Unknown IP",
+            "os": "Unknown OS",
+            "browser": "Browser",
+            "connected_at": "Just now",
+            "ping": 10,
         }
         count = len(self.active_connections)
+        devices_list = self.get_connected_devices_list()
         settings.connected_devices_count = count
-        logger.info(f"Client connected. Active count: {count}")
+        settings.connected_devices_list = devices_list
+
+        logger.info(f"Client connected: {self.client_metadata[websocket].get('name')}. Active: {count}")
 
         if self.on_device_count_changed:
             self.on_device_count_changed(count)
+        if self.on_devices_updated:
+            self.on_devices_updated(devices_list)
 
-        # Notify all devices of updated peer status
+        # Notify all devices of updated fleet list
         await self.broadcast({
-            "type": "device_status",
+            "type": "devices_list_updated",
             "connected_count": count,
-            "message": "New device connected to AirBridge",
+            "devices": devices_list,
+            "message": f"{self.client_metadata[websocket].get('name')} connected",
         })
 
     def disconnect(self, websocket: WebSocket):
         """Unregister client on disconnect."""
+        removed_meta = self.client_metadata.pop(websocket, None)
         self.active_connections.discard(websocket)
-        self.client_metadata.pop(websocket, None)
         count = len(self.active_connections)
+        devices_list = self.get_connected_devices_list()
         settings.connected_devices_count = count
-        logger.info(f"Client disconnected. Active count: {count}")
+        settings.connected_devices_list = devices_list
+
+        dev_name = removed_meta.get("name") if removed_meta else "A device"
+        logger.info(f"Client disconnected: {dev_name}. Active: {count}")
 
         if self.on_device_count_changed:
             self.on_device_count_changed(count)
+        if self.on_devices_updated:
+            self.on_devices_updated(devices_list)
 
         # Broadcast update asynchronously if loop is running
         if self._loop and self._loop.is_running():
             asyncio.run_coroutine_threadsafe(
                 self.broadcast({
-                    "type": "device_status",
+                    "type": "devices_list_updated",
                     "connected_count": count,
-                    "message": "Device disconnected from AirBridge",
+                    "devices": devices_list,
+                    "message": f"{dev_name} disconnected",
                 }),
                 self._loop
             )
@@ -124,6 +148,14 @@ class ConnectionManager:
         self.broadcast_threadsafe({
             "type": "stream_queue_updated",
             "queue": queue_items,
+        })
+
+    def notify_quick_note(self, text: str, sender: str = "PC"):
+        """Broadcast instant quick note / link drop."""
+        self.broadcast_threadsafe({
+            "type": "quick_note",
+            "text": text,
+            "sender": sender,
         })
 
 
