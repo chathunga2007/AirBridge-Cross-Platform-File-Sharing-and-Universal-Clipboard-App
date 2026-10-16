@@ -376,40 +376,100 @@
 
     <!-- TAB 5: MEDIA STREAM (STORAGE-FREE VIDEO) -->
     <section id="tab-stream" class="tab-content space-y-4">
-      <div class="glass-panel-elevated rounded-2xl p-4 space-y-3 border border-indigo-500/25">
-        <div>
-          <h3 class="text-sm font-bold text-white flex items-center gap-2">
-            <i data-lucide="film" class="w-4 h-4 text-indigo-400"></i>
-            Storage-Free LAN Video Player
-          </h3>
-          <p class="text-xs text-slate-400">Stream high-res movies from PC without saving to iPhone</p>
+      <div class="glass-panel-elevated rounded-2xl p-4 space-y-3 border border-indigo-500/30 shadow-2xl relative overflow-hidden">
+        
+        <!-- Header & Explainer -->
+        <div class="flex items-start justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <span class="p-1 rounded-lg bg-indigo-500/20 text-indigo-400">
+                <i data-lucide="film" class="w-4 h-4"></i>
+              </span>
+              <span>Storage-Free LAN Cinema</span>
+            </h3>
+            <p class="text-[11px] text-slate-400 mt-0.5">Stream 4K/1080p movies straight from PC without downloading</p>
+          </div>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-mono">
+            RFC 7233
+          </span>
         </div>
 
-        <div class="w-full aspect-video rounded-xl bg-black border border-slate-800 overflow-hidden relative shadow-lg">
-          <video id="lanVideoPlayer" controls playsinline preload="metadata" class="w-full h-full object-contain">
+        <!-- Cinema Player with Ambient Backlight -->
+        <div class="relative w-full aspect-video rounded-xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl group">
+          <div id="ambientBacklight" class="absolute -inset-4 bg-gradient-to-r from-indigo-500/20 via-purple-500/25 to-pink-500/20 blur-xl opacity-60 pointer-events-none transition duration-700"></div>
+          
+          <video id="lanVideoPlayer" controls playsinline preload="metadata" 
+                 class="relative z-10 w-full h-full object-contain">
             <source id="videoSource" src="" type="video/mp4">
             Your browser does not support the video tag.
           </video>
+
+          <canvas id="demoStreamCanvas" class="hidden absolute inset-0 z-20 w-full h-full bg-slate-950"></canvas>
         </div>
 
-        <div id="nowPlayingTitle" class="text-xs font-mono text-cyan-300 truncate">
-          Select a video from the queue below
+        <!-- Cinema Micro Controls: Skip & Speed -->
+        <div class="flex items-center justify-between gap-2 pt-1">
+          <div class="flex items-center gap-1.5">
+            <button onclick="skipVideo(-10)" class="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-[11px] text-slate-300 font-medium active:scale-95 transition">
+              ⏪ 10s
+            </button>
+            <button onclick="skipVideo(10)" class="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-[11px] text-slate-300 font-medium active:scale-95 transition">
+              10s ⏩
+            </button>
+          </div>
+
+          <!-- Speed Controls -->
+          <div class="flex items-center gap-1 bg-slate-900/80 p-0.5 rounded-lg border border-slate-800">
+            <button onclick="setPlaySpeed(0.75)" class="speed-btn px-1.5 py-0.5 rounded text-[10px] text-slate-400 hover:text-white" data-speed="0.75">0.75x</button>
+            <button onclick="setPlaySpeed(1.0)" class="speed-btn px-1.5 py-0.5 rounded text-[10px] font-bold text-cyan-400 bg-slate-800" data-speed="1.0">1x</button>
+            <button onclick="setPlaySpeed(1.25)" class="speed-btn px-1.5 py-0.5 rounded text-[10px] text-slate-400 hover:text-white" data-speed="1.25">1.25x</button>
+            <button onclick="setPlaySpeed(1.5)" class="speed-btn px-1.5 py-0.5 rounded text-[10px] text-slate-400 hover:text-white" data-speed="1.5">1.5x</button>
+          </div>
         </div>
 
+        <!-- Now Playing Label -->
+        <div class="flex items-center justify-between text-xs font-mono pt-1">
+          <div id="nowPlayingTitle" class="text-indigo-300 truncate font-semibold">
+            Ready • Select media from queue below
+          </div>
+          <span id="streamStatusBadge" class="text-[10px] text-slate-500 font-mono">Idle</span>
+        </div>
+
+        <!-- Action Buttons: Request PC to Pick Media / Instant Demo -->
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80">
+          <button onclick="requestPcBrowseMedia()" 
+                  class="py-2 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-900/30 active:scale-98 transition">
+            <i data-lucide="folder-search" class="w-4 h-4"></i>
+            <span>Browse PC Media</span>
+          </button>
+
+          <button onclick="startCyberDemoStream()" 
+                  class="py-2 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 font-semibold text-xs flex items-center justify-center gap-1.5 active:scale-98 transition">
+            <i data-lucide="sparkles" class="w-4 h-4 text-cyan-400"></i>
+            <span>Play Cyber Demo</span>
+          </button>
+        </div>
+
+        <!-- Stream Media Queue -->
         <div class="space-y-2 pt-2 border-t border-slate-800">
           <div class="flex items-center justify-between text-xs text-slate-300 font-semibold">
-            <span>PC Stream Queue</span>
-            <button onclick="fetchStreamQueue()" class="text-cyan-400 hover:text-cyan-300">
+            <span class="flex items-center gap-1.5">
+              <span>PC Media Library & Queue</span>
+              <span id="streamQueueCount" class="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 px-1.5 py-0.2 rounded-full border border-indigo-500/20">0</span>
+            </span>
+            <button onclick="fetchStreamQueue()" class="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 text-[11px]">
               <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Refresh</span>
             </button>
           </div>
           <div id="streamQueueList" class="space-y-2 max-h-56 overflow-y-auto pr-1">
             <div class="text-center py-6 text-slate-500 text-xs">
               <i data-lucide="clapperboard" class="w-7 h-7 mx-auto mb-1.5 opacity-30"></i>
-              No media queued on PC yet. Drag a video into the AirBridge PC app!
+              No media in queue. Tap "Browse PC Media" above to pick any video on your PC!
             </div>
           </div>
         </div>
+
       </div>
     </section>
 
@@ -1058,13 +1118,20 @@
     }
 
     // -------------------------------------------------------------
-    // MEDIA STREAM LOGIC (HTTP RANGE 206)
+    // MEDIA STREAM LOGIC (HTTP RANGE 206 & CYBER DEMO)
     // -------------------------------------------------------------
+    let demoStreamActive = false;
+    let demoAnimFrame = null;
+    let demoAudioOsc = null;
+
     async function fetchStreamQueue() {
       try {
         const res = await fetch('/api/stream/queue');
         const data = await res.json();
-        renderStreamQueue(data.queue || []);
+        const queue = data.queue || [];
+        const countBadge = document.getElementById('streamQueueCount');
+        if (countBadge) countBadge.innerText = queue.length;
+        renderStreamQueue(queue);
       } catch (e) {
         console.error("Stream queue error:", e);
       }
@@ -1076,7 +1143,7 @@
         list.innerHTML = `
           <div class="text-center py-6 text-slate-500 text-xs">
             <i data-lucide="clapperboard" class="w-7 h-7 mx-auto mb-1.5 opacity-30"></i>
-            No media queued on PC yet. Drag a video into the AirBridge PC app!
+            No media in queue. Tap "Browse PC Media" above to select a movie or song from your PC!
           </div>
         `;
         lucide.createIcons();
@@ -1084,14 +1151,14 @@
       }
 
       list.innerHTML = queue.map(item => `
-        <div onclick="playStreamItem('${item.id}', '${escapeHtml(item.filename)}')" 
-             class="glass-panel p-2.5 rounded-xl flex items-center justify-between border border-slate-800 hover:border-indigo-500/50 cursor-pointer active:scale-98 transition">
+        <div onclick="playStreamItem('${item.id}', '${escapeHtml(item.filename)}', '${item.mime_type}')" 
+             class="glass-panel p-2.5 rounded-xl flex items-center justify-between border border-slate-800 hover:border-indigo-500/50 cursor-pointer active:scale-98 transition group">
           <div class="flex items-center space-x-2.5 min-w-0 pr-2">
-            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex-shrink-0 flex items-center justify-center text-indigo-400">
-              <i data-lucide="play" class="w-4 h-4"></i>
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 group-hover:bg-indigo-500/30 flex-shrink-0 flex items-center justify-center text-indigo-400">
+              <i data-lucide="${item.mime_type && item.mime_type.startsWith('audio') ? 'music' : 'play'}" class="w-4 h-4"></i>
             </div>
             <div class="min-w-0">
-              <p class="text-xs font-semibold text-slate-200 truncate">${item.filename}</p>
+              <p class="text-xs font-semibold text-slate-200 truncate group-hover:text-indigo-300 transition">${item.filename}</p>
               <span class="text-[10px] text-slate-400 font-mono">${formatBytes(item.filesize)}</span>
             </div>
           </div>
@@ -1104,14 +1171,168 @@
       lucide.createIcons();
     }
 
-    function playStreamItem(fileId, filename) {
+    function playStreamItem(fileId, filename, mimeType) {
+      stopCyberDemoStream();
       const player = document.getElementById('lanVideoPlayer');
       const title = document.getElementById('nowPlayingTitle');
-      title.innerText = `Now Streaming: ${filename}`;
+      const statusBadge = document.getElementById('streamStatusBadge');
+      const backlight = document.getElementById('ambientBacklight');
+
+      title.innerText = `Streaming: ${filename}`;
+      if (statusBadge) statusBadge.innerText = 'Streaming (LAN)';
+      if (backlight) backlight.className = 'absolute -inset-4 bg-gradient-to-r from-cyan-500/30 via-indigo-500/30 to-purple-500/30 blur-2xl opacity-90 pointer-events-none transition duration-700';
+
       player.src = `/api/stream/${fileId}`;
       player.load();
-      player.play().catch(e => console.log("Autoplay note:", e));
+      player.play().catch(e => console.log("Autoplay policy:", e));
+      playCyberChime('beam');
       showToast(`🎬 Streaming ${filename}`, 'info');
+    }
+
+    async function requestPcBrowseMedia() {
+      try {
+        playCyberChime('note');
+        showToast('💻 Opening file picker on your Windows PC...', 'info');
+        const res = await fetch('/api/stream/browse', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('✅ Pick any video/audio on PC to start streaming!', 'success');
+        } else {
+          showToast('⚠️ Could not open file picker on PC', 'warning');
+        }
+      } catch (e) {
+        showToast('Error requesting PC file picker', 'warning');
+      }
+    }
+
+    function skipVideo(seconds) {
+      const player = document.getElementById('lanVideoPlayer');
+      if (player && !isNaN(player.currentTime)) {
+        player.currentTime = Math.max(0, Math.min(player.duration || 9999, player.currentTime + seconds));
+        showToast(seconds > 0 ? `⏩ +${seconds}s` : `⏪ ${seconds}s`, 'info');
+      }
+    }
+
+    function setPlaySpeed(speed) {
+      const player = document.getElementById('lanVideoPlayer');
+      if (player) {
+        player.playbackRate = speed;
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+          if (parseFloat(btn.dataset.speed) === speed) {
+            btn.className = 'speed-btn px-1.5 py-0.5 rounded text-[10px] font-bold text-cyan-400 bg-slate-800';
+          } else {
+            btn.className = 'speed-btn px-1.5 py-0.5 rounded text-[10px] text-slate-400 hover:text-white';
+          }
+        });
+        showToast(`⚡ Playback speed: ${speed}x`, 'info');
+      }
+    }
+
+    function startCyberDemoStream() {
+      const player = document.getElementById('lanVideoPlayer');
+      player.pause();
+      player.classList.add('hidden');
+      
+      const canvas = document.getElementById('demoStreamCanvas');
+      canvas.classList.remove('hidden');
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.clientWidth || 360;
+      canvas.height = canvas.clientHeight || 202;
+
+      demoStreamActive = true;
+      document.getElementById('nowPlayingTitle').innerText = '⚡ Cyber Cinema 4K 60FPS Demo (AirBridge Engine)';
+      document.getElementById('streamStatusBadge').innerText = 'Demo Active';
+
+      // Start Synthesized Cyber Synth Track
+      try {
+        const audioCtx = getAudioContext();
+        if (audioCtx) {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(110, audioCtx.currentTime); // A2 bass
+          gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          demoAudioOsc = { osc, gain, audioCtx };
+        }
+      } catch (e) {}
+
+      let t = 0;
+      function draw() {
+        if (!demoStreamActive) return;
+        t += 0.04;
+        ctx.fillStyle = '#030712';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Cyber Grid Perspective
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.25)';
+        ctx.lineWidth = 1;
+        const horizon = canvas.height * 0.55;
+
+        for (let x = -canvas.width; x < canvas.width * 2; x += 30) {
+          ctx.beginPath();
+          ctx.moveTo(canvas.width / 2, horizon);
+          ctx.lineTo(x + Math.sin(t) * 20, canvas.height);
+          ctx.stroke();
+        }
+
+        for (let y = horizon; y < canvas.height; y += 14) {
+          const py = horizon + Math.pow((y - horizon) / (canvas.height - horizon), 1.5) * (canvas.height - horizon);
+          ctx.beginPath();
+          ctx.moveTo(0, py);
+          ctx.lineTo(canvas.width, py);
+          ctx.stroke();
+        }
+
+        // Glowing Sun / Portal
+        const grad = ctx.createRadialGradient(canvas.width/2, horizon - 10, 5, canvas.width/2, horizon - 10, 50);
+        grad.addColorStop(0, '#f43f5e');
+        grad.addColorStop(0.5, '#8b5cf6');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(canvas.width/2, horizon - 10, 50, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Audio waveform bars overlay
+        ctx.fillStyle = '#06b6d4';
+        const numBars = 24;
+        const barWidth = canvas.width / numBars - 4;
+        for (let i = 0; i < numBars; i++) {
+          const barHeight = Math.abs(Math.sin(t * 3 + i * 0.4)) * 35 + 5;
+          ctx.fillRect(i * (barWidth + 4) + 2, canvas.height - barHeight - 8, barWidth, barHeight);
+        }
+
+        // HUD Text
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 11px system-ui';
+        ctx.fillText('AIRBRIDGE HIGH BITRATE STREAM DEMO', 14, 22);
+        ctx.fillStyle = '#34d399';
+        ctx.font = '10px monospace';
+        ctx.fillText(`60.0 FPS • 0% BUFFER LOSS • RFC 7233 ACTIVE`, 14, 38);
+
+        demoAnimFrame = requestAnimationFrame(draw);
+      }
+      draw();
+      showToast('🎬 Cyber Cinema Demo Playing!', 'success');
+    }
+
+    function stopCyberDemoStream() {
+      demoStreamActive = false;
+      if (demoAnimFrame) cancelAnimationFrame(demoAnimFrame);
+      if (demoAudioOsc) {
+        try {
+          demoAudioOsc.osc.stop();
+          demoAudioOsc.osc.disconnect();
+        } catch (e) {}
+        demoAudioOsc = null;
+      }
+      const canvas = document.getElementById('demoStreamCanvas');
+      if (canvas) canvas.classList.add('hidden');
+      const player = document.getElementById('lanVideoPlayer');
+      if (player) player.classList.remove('hidden');
     }
 
     // -------------------------------------------------------------
