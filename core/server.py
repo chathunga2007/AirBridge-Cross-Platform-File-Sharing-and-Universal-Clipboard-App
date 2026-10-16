@@ -1,10 +1,12 @@
 """
 AirBridge - FastAPI High-Performance Backend & Media Streamer
 Provides REST APIs, WebSocket Event Bus, and RFC 7233 Range-Request Video Streaming
+Turbo LAN Transfer Engine with Multi-Device Fleet Tracking
 Created by Chathunga
 """
 
 import os
+import time
 import mimetypes
 import logging
 from pathlib import Path
@@ -61,14 +63,17 @@ desktop_callbacks: Dict[str, Any] = {
     "on_file_received": None,       # Callable[[Dict[str, Any]], None]
     "on_clipboard_updated": None,   # Callable[[str, str], None]
     "on_device_connected": None,    # Callable[[int], None]
+    "on_devices_updated": None,     # Callable[[List[Dict[str, Any]]], None]
+    "on_quick_note_received": None, # Callable[[str, str], None]
 }
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager for FastAPI application."""
-    # Detect IP
-    settings.active_ip = get_local_ip()
+    # Ensure active IP is set
+    if not settings.active_ip or settings.active_ip == "127.0.0.1":
+        settings.active_ip = get_local_ip()
     logger.info(f"AirBridge LAN IP detected: {settings.active_ip}")
     logger.info(f"AirBridge Pairing URL: {settings.get_pairing_url()}")
 
@@ -78,9 +83,7 @@ async def lifespan(app: FastAPI):
 
     # Wire clipboard synchronizer
     def handle_clipboard_change(text: str, source: str):
-        # Broadcast to mobile clients
         ws_manager.notify_clipboard(text, source)
-        # Notify Desktop GUI if registered
         cb = desktop_callbacks.get("on_clipboard_updated")
         if cb:
             try:
@@ -91,7 +94,7 @@ async def lifespan(app: FastAPI):
     clipboard_sync.on_clipboard_changed = handle_clipboard_change
     clipboard_sync.start()
 
-    # Wire device count change
+    # Wire device count and full device list changes
     def handle_device_count(count: int):
         cb = desktop_callbacks.get("on_device_connected")
         if cb:
@@ -100,7 +103,16 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.debug(f"GUI device count callback error: {e}")
 
+    def handle_devices_updated(devices: List[Dict[str, Any]]):
+        cb = desktop_callbacks.get("on_devices_updated")
+        if cb:
+            try:
+                cb(devices)
+            except Exception as e:
+                logger.debug(f"GUI devices updated callback error: {e}")
+
     ws_manager.on_device_count_changed = handle_device_count
+    ws_manager.on_devices_updated = handle_devices_updated
 
     yield
 
@@ -153,18 +165,17 @@ async def serve_manifest():
     if manifest_file.exists():
         return FileResponse(manifest_file, media_type="application/manifest+json")
 
-    # Fallback dynamic manifest
     dynamic_manifest = {
         "name": "AirBridge",
         "short_name": "AirBridge",
         "start_url": "/",
         "display": "standalone",
-        "background_color": "#0f172a",
-        "theme_color": "#0f172a",
+        "background_color": "#070b14",
+        "theme_color": "#070b14",
         "orientation": "portrait-primary",
         "icons": [
             {
-                "src": "/assets/AirBridge-Icon.png",
+                "src": "/assets/icon.png",
                 "sizes": "192x192 512x512",
                 "type": "image/png",
                 "purpose": "any maskable"
@@ -193,7 +204,18 @@ async def get_system_info():
         "auto_convert_heic": settings.auto_convert_heic,
         "auto_sync_clipboard": settings.auto_sync_clipboard,
         "connected_devices": settings.connected_devices_count,
+        "connected_devices_list": settings.connected_devices_list,
         "downloads_dir": str(DOWNLOADS_DIR),
+    }
+
+
+@app.get("/api/devices")
+async def get_connected_devices():
+    """Return detailed list of all currently connected mobile/desktop devices."""
+    devices = ws_manager.get_connected_devices_list()
+    return {
+        "count": len(devices),
+        "devices": devices,
     }
 
 
@@ -215,25 +237,25 @@ async def toggle_clipboard_sync(request: Request):
     return {"auto_sync_clipboard": settings.auto_sync_clipboard}
 
 
+# ---------------------------------------------------------
+# Turbo LAN High-Speed File Upload Engine (10GB+ Chunk Streaming)
+# ---------------------------------------------------------
+
+CHUNK_SIZE = 4 * 1024 * 1024  # 4MB streaming buffer for gigabit LAN throughput
+
+
 @app.post("/api/upload")
 async def upload_files(files: List[UploadFile] = File(...)):
     """
-    Handle high-speed multi-file uploads from Mobile devices.
-    Performs on-the-fly HEIC -> JPG conversion for iPhone photos if enabled.
-    Saves directly to PC's Downloads/AirBridge directory.
+    Turbo LAN High-Speed Multi-File Upload Engine.
+    Handles massive 1GB - 10GB+ files without memory bloat by streaming in 4MB chunks.
+    Performs on-the-fly HEIC -> JPG conversion for iPhone photos when enabled.
     """
     uploaded_items = []
 
     for file in files:
         filename = file.filename or "shared_file"
-        file_bytes = await file.read()
         converted_heic = False
-
-        # Smart HEIC detection and conversion
-        is_heic = is_heic_extension(filename) or is_heic_data(file_bytes)
-        if is_heic and settings.auto_convert_heic:
-            file_bytes, filename = convert_heic_bytes_to_jpg(file_bytes, filename)
-            converted_heic = True
 
         # Avoid filename collision
         save_path = DOWNLOADS_DIR / filename
@@ -244,11 +266,29 @@ async def upload_files(files: List[UploadFile] = File(...)):
             save_path = DOWNLOADS_DIR / f"{stem}_{counter}{suffix}"
             counter += 1
 
-        # Save to disk
-        with open(save_path, "wb") as f:
-            f.write(file_bytes)
+        is_heic = is_heic_extension(filename)
+        if is_heic and settings.auto_convert_heic:
+            # Photos are small enough to read and convert via pillow-heif
+            raw_bytes = await file.read()
+            jpg_bytes, filename = convert_heic_bytes_to_jpg(raw_bytes, filename)
+            save_path = DOWNLOADS_DIR / filename
+            counter = 1
+            while save_path.exists():
+                save_path = DOWNLOADS_DIR / f"{Path(filename).stem}_{counter}.jpg"
+                counter += 1
+            with open(save_path, "wb") as f:
+                f.write(jpg_bytes)
+            filesize = len(jpg_bytes)
+            converted_heic = True
+        else:
+            # TURBO STREAMING WRITE for large files (videos, archives, multi-gigabyte files)
+            total_size = 0
+            with open(save_path, "wb") as out_f:
+                while chunk := await file.read(CHUNK_SIZE):
+                    out_f.write(chunk)
+                    total_size += len(chunk)
+            filesize = total_size
 
-        filesize = len(file_bytes)
         ext = save_path.suffix.lower()
         is_image = ext in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
 
@@ -263,13 +303,13 @@ async def upload_files(files: List[UploadFile] = File(...)):
             "url": f"/api/download/{save_path.name}",
         }
 
-        # Keep in history
+        # Save in history
         settings.shared_files.insert(0, SharedFileItem(
             file_id=save_path.name,
             filename=save_path.name,
             filepath=str(save_path),
             filesize=filesize,
-            uploaded_at="",
+            uploaded_at=time.strftime("%I:%M %p"),
             is_image=is_image,
             source="Mobile",
             converted_from_heic=converted_heic
@@ -301,6 +341,7 @@ async def list_shared_files():
             "filesize": f.filesize,
             "is_image": f.is_image,
             "source": f.source,
+            "uploaded_at": f.uploaded_at,
             "converted_from_heic": f.converted_from_heic,
             "url": f"/api/download/{f.filename}",
         })
@@ -309,21 +350,34 @@ async def list_shared_files():
 
 @app.get("/api/download/{filename}")
 async def download_shared_file(filename: str):
-    """Download a shared file from Downloads/AirBridge/ to Mobile or browser."""
+    """High-speed Turbo streaming file download from PC to Mobile with 4MB chunk buffer."""
     target_path = DOWNLOADS_DIR / filename
     if not target_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
 
     mime_type, _ = mimetypes.guess_type(str(target_path))
-    return FileResponse(
-        path=str(target_path),
-        filename=filename,
-        media_type=mime_type or "application/octet-stream"
+    file_size = target_path.stat().st_size
+
+    def iter_file():
+        with open(target_path, "rb") as f:
+            while chunk := f.read(CHUNK_SIZE):
+                yield chunk
+
+    headers = {
+        "Content-Disposition": f'attachment; filename="{filename}"',
+        "Content-Length": str(file_size),
+        "Accept-Ranges": "bytes",
+    }
+
+    return StreamingResponse(
+        iter_file(),
+        media_type=mime_type or "application/octet-stream",
+        headers=headers
     )
 
 
 # ---------------------------------------------------------
-# Clipboard Endpoints
+# Clipboard & Quick Notes Endpoints
 # ---------------------------------------------------------
 
 @app.get("/api/clipboard")
@@ -342,7 +396,6 @@ async def set_clipboard(request: Request):
     text = data.get("text", "")
     success = clipboard_sync.set_remote_text(text)
     if success:
-        # Also notify other clients if any
         ws_manager.notify_clipboard(text, source="Mobile")
     return {"success": success, "length": len(text)}
 
@@ -354,20 +407,29 @@ async def push_pc_clipboard():
     return {"success": True, "text": text, "length": len(text)}
 
 
+@app.post("/api/note")
+async def post_quick_note(request: Request):
+    """Broadcast an instant quick note or sticky link across all devices."""
+    data = await request.json()
+    text = data.get("text", "")
+    sender = data.get("sender", "PC")
+    ws_manager.notify_quick_note(text, sender)
+    cb = desktop_callbacks.get("on_quick_note_received")
+    if cb:
+        cb(text, sender)
+    return {"success": True, "text": text}
+
+
 # ---------------------------------------------------------
 # Screenshot Beaming Endpoints
 # ---------------------------------------------------------
 
 @app.post("/api/screenshot")
 async def beam_screenshot():
-    """
-    Capture primary Windows monitor and beam to all connected mobile devices.
-    Returns preview data URI and download URL.
-    """
+    """Capture primary Windows monitor and beam to all connected mobile devices."""
     try:
         jpeg_bytes, base64_uri, file_path = capture_primary_screen()
         screenshot_url = "/api/screenshot/latest"
-        # Broadcast event to mobile clients
         ws_manager.notify_screenshot_beamed(screenshot_url, base64_uri)
         return {
             "success": True,
@@ -417,12 +479,10 @@ async def stream_media_range(file_id: str, request: Request, range: Optional[str
     """
     Full RFC 7233 compliant HTTP Range Request streaming handler.
     Allows iPhone Safari HTML5 video players to seek, scrub, and stream
-    large 4K/1080p video files (MKV, MP4, MOV, WebM) and audio directly
-    from PC memory/disk with 206 Partial Content without filling iPhone storage.
+    large 4K/1080p video files directly without downloading them to iPhone storage.
     """
     item = settings.stream_queue.get(file_id)
     if not item or not os.path.exists(item.filepath):
-        # Also check if file exists in Downloads directory by filename
         fallback_path = DOWNLOADS_DIR / file_id
         if fallback_path.exists():
             mime, _ = mimetypes.guess_type(str(fallback_path))
@@ -439,11 +499,10 @@ async def stream_media_range(file_id: str, request: Request, range: Optional[str
     file_path = Path(item.filepath)
     file_size = item.filesize
 
-    # If no Range header is sent, return the full file stream with Accept-Ranges
     if not range:
         def full_iter():
             with open(file_path, "rb") as f:
-                while chunk := f.read(1024 * 512):
+                while chunk := f.read(1024 * 1024):
                     yield chunk
 
         return StreamingResponse(
@@ -456,7 +515,6 @@ async def stream_media_range(file_id: str, request: Request, range: Optional[str
             }
         )
 
-    # Parse HTTP Range header (format: "bytes=start-end")
     try:
         range_units, range_spec = range.strip().split("=")
         if range_units.lower() != "bytes":
@@ -474,7 +532,7 @@ async def stream_media_range(file_id: str, request: Request, range: Optional[str
 
         content_length = (end - start) + 1
 
-        def range_iter(start_pos: int, bytes_to_read: int, chunk_size: int = 1024 * 512):
+        def range_iter(start_pos: int, bytes_to_read: int, chunk_size: int = 1024 * 1024):
             with open(file_path, "rb") as f:
                 f.seek(start_pos)
                 remaining = bytes_to_read
@@ -505,18 +563,58 @@ async def stream_media_range(file_id: str, request: Request, range: Optional[str
 
 
 # ---------------------------------------------------------
-# WebSocket Real-Time Event Bus
+# WebSocket Real-Time Event Bus with Rich Device Profiling
 # ---------------------------------------------------------
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """Bi-directional WebSocket connection for real-time syncing."""
+    """Bi-directional WebSocket connection with device parsing & ping benchmarking."""
     user_agent = websocket.headers.get("user-agent", "Unknown Device")
+    client_ip = websocket.client.host if websocket.client else "Unknown IP"
+
+    # Precise OS and Browser profiling
+    os_name = "Desktop"
+    device_name = "Device"
+    browser = "Browser"
+
+    if "iPhone" in user_agent:
+        os_name = "iOS"
+        device_name = "Apple iPhone"
+    elif "iPad" in user_agent:
+        os_name = "iPadOS"
+        device_name = "Apple iPad"
+    elif "Android" in user_agent:
+        os_name = "Android"
+        device_name = "Android Device"
+    elif "Windows" in user_agent:
+        os_name = "Windows"
+        device_name = "Windows Client"
+    elif "Macintosh" in user_agent:
+        os_name = "macOS"
+        device_name = "Mac Client"
+
+    if "Safari" in user_agent and "Chrome" not in user_agent:
+        browser = "Safari PWA"
+    elif "Chrome" in user_agent:
+        browser = "Chrome"
+    elif "Firefox" in user_agent:
+        browser = "Firefox"
+    elif "Edg" in user_agent:
+        browser = "Edge"
+
+    dev_id = f"dev_{int(time.time() * 1000) % 1000000}"
     client_info = {
-        "user_agent": user_agent,
-        "is_ios": "iPhone" in user_agent or "iPad" in user_agent,
-        "is_android": "Android" in user_agent,
+        "id": dev_id,
+        "name": f"{device_name} ({browser})",
+        "raw_device": device_name,
+        "os": os_name,
+        "browser": browser,
+        "ip": client_ip,
+        "connected_at": time.strftime("%I:%M %p"),
+        "ping": 10,
+        "is_active": True,
     }
+
     await ws_manager.connect(websocket, client_info)
 
     try:
@@ -528,18 +626,46 @@ async def websocket_endpoint(websocket: WebSocket):
                 msg_type = msg.get("type")
 
                 if msg_type == "ping":
-                    await websocket.send_text(json.dumps({"type": "pong"}))
+                    client_ts = msg.get("timestamp", 0)
+                    await websocket.send_text(json.dumps({
+                        "type": "pong",
+                        "client_timestamp": client_ts,
+                        "server_timestamp": time.time() * 1000,
+                    }))
+
+                elif msg_type == "client_hello":
+                    # Device announced a custom nickname
+                    custom_name = msg.get("name")
+                    if custom_name and websocket in ws_manager.client_metadata:
+                        ws_manager.client_metadata[websocket]["name"] = custom_name
+                        ws_manager.client_metadata[websocket]["raw_device"] = custom_name
+                        devices_list = ws_manager.get_connected_devices_list()
+                        settings.connected_devices_list = devices_list
+                        if ws_manager.on_devices_updated:
+                            ws_manager.on_devices_updated(devices_list)
+                        await ws_manager.broadcast({
+                            "type": "devices_list_updated",
+                            "connected_count": len(ws_manager.active_connections),
+                            "devices": devices_list,
+                        })
 
                 elif msg_type == "send_clipboard":
                     content = msg.get("text", "")
                     if content:
                         clipboard_sync.set_remote_text(content)
-                        # Broadcast to all clients
                         await ws_manager.broadcast({
                             "type": "clipboard_update",
                             "text": content,
-                            "source": "Mobile"
+                            "source": client_info.get("name", "Mobile")
                         })
+
+                elif msg_type == "send_quick_note":
+                    note_text = msg.get("text", "")
+                    sender_name = msg.get("sender") or client_info.get("name", "Mobile")
+                    ws_manager.notify_quick_note(note_text, sender_name)
+                    cb = desktop_callbacks.get("on_quick_note_received")
+                    if cb:
+                        cb(note_text, sender_name)
 
                 elif msg_type == "request_screenshot":
                     try:
