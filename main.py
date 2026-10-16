@@ -79,7 +79,54 @@ def ensure_icons():
 ensure_icons()
 
 
-# 3. Background FastAPI Server Runner
+def ensure_shortcuts():
+    """Ensure Windows Start Menu & Desktop shortcuts exist with the custom AirBridge icon."""
+    if sys.platform != "win32":
+        return
+    try:
+        import win32com.client
+        shell = win32com.client.Dispatch("WScript.Shell")
+        base_dir = Path(__file__).resolve().parent
+        ico_path = base_dir / "assets" / "icon.ico"
+        main_py = base_dir / "main.py"
+
+        # Start Menu Programs shortcut (forces Windows 11 Taskbar icon resolution)
+        try:
+            programs_dir = shell.SpecialFolders("Programs")
+            if programs_dir and os.path.exists(programs_dir):
+                lnk_programs = os.path.join(programs_dir, "AirBridge.lnk")
+                s2 = shell.CreateShortcut(lnk_programs)
+                s2.TargetPath = sys.executable
+                s2.Arguments = f'"{main_py}"'
+                s2.WorkingDirectory = str(base_dir)
+                s2.IconLocation = f"{ico_path.resolve()},0"
+                s2.Description = "AirBridge - Cross-Device Local Transfer Hub by Chathunga"
+                s2.Save()
+                logger.info("Windows Start Menu shortcut verified with custom icon.")
+        except Exception as e:
+            logger.debug(f"Start Menu shortcut setup note: {e}")
+
+        # Desktop shortcut
+        try:
+            desktop_dir = shell.SpecialFolders("Desktop")
+            if desktop_dir and os.path.exists(desktop_dir):
+                lnk_desktop = os.path.join(desktop_dir, "AirBridge.lnk")
+                s = shell.CreateShortcut(lnk_desktop)
+                s.TargetPath = sys.executable
+                s.Arguments = f'"{main_py}"'
+                s.WorkingDirectory = str(base_dir)
+                s.IconLocation = f"{ico_path.resolve()},0"
+                s.Description = "AirBridge - Cross-Device Local Transfer Hub by Chathunga"
+                s.Save()
+                logger.info("Windows Desktop shortcut verified with custom icon.")
+        except Exception as e:
+            logger.debug(f"Desktop shortcut setup note: {e}")
+
+    except Exception as e:
+        logger.debug(f"Shortcut creation skipped: {e}")
+
+
+ensure_shortcuts()
 class ServerThread(threading.Thread):
     def __init__(self, host: str, port: int):
         super().__init__(name="AirBridge-ServerThread", daemon=True)
