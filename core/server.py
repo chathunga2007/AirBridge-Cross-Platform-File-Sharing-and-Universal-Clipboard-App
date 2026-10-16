@@ -459,9 +459,30 @@ async def get_latest_screenshot():
 # Storage-Free LAN Video/Audio Range-Request Streaming (RFC 7233)
 # ---------------------------------------------------------
 
+MEDIA_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v", ".mp3", ".wav", ".m4a", ".flac", ".ogg"}
+
+
 @app.get("/api/stream/queue")
 async def get_stream_queue():
-    """List all media items currently available in the stream queue."""
+    """
+    List all media items currently available in the stream queue.
+    Automatically scans DOWNLOADS_DIR for shared video/audio media.
+    """
+    # 1. Auto-discover any video/audio files present in the AirBridge folder
+    if DOWNLOADS_DIR.exists():
+        for entry in DOWNLOADS_DIR.iterdir():
+            if entry.is_file() and entry.suffix.lower() in MEDIA_EXTENSIONS:
+                file_id = f"media_{entry.stem}_{entry.stat().st_size}"
+                if file_id not in settings.stream_queue:
+                    mime, _ = mimetypes.guess_type(str(entry))
+                    settings.stream_queue[file_id] = StreamItem(
+                        file_id=file_id,
+                        filename=entry.name,
+                        filepath=str(entry.resolve()),
+                        filesize=entry.stat().st_size,
+                        mime_type=mime or "video/mp4"
+                    )
+
     items = []
     for item in settings.stream_queue.values():
         items.append({
@@ -471,7 +492,35 @@ async def get_stream_queue():
             "mime_type": item.mime_type,
             "url": f"/api/stream/{item.file_id}"
         })
-    return {"queue": items}
+    return {"queue": items, "count": len(items)}
+
+
+@app.post("/api/stream/browse")
+async def trigger_browse_stream():
+    """Trigger the native Windows Open File Dialog on the desktop from mobile."""
+    cb = desktop_callbacks.get("on_browse_stream_requested")
+    if cb:
+        cb()
+        return {"success": True, "message": "Windows file picker launched on PC"}
+    return {"success": False, "message": "Desktop app window not available"}
+
+
+@app.get("/api/system/stats")
+async def get_system_stats():
+    """Return PC storage and AirBridge directory metrics."""
+    import shutil
+    total, used, free = shutil.disk_usage(DOWNLOADS_DIR)
+    files = [f for f in DOWNLOADS_DIR.glob("*") if f.is_file()] if DOWNLOADS_DIR.exists() else []
+    total_size = sum(f.stat().st_size for f in files)
+    return {
+        "disk_total": total,
+        "disk_used": used,
+        "disk_free": free,
+        "disk_percent": round((used / total) * 100, 1),
+        "files_count": len(files),
+        "airbridge_storage_used": total_size,
+        "connected_devices": ws_manager.get_connected_devices_count(),
+    }
 
 
 @app.get("/api/stream/{file_id}")
