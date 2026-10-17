@@ -87,18 +87,26 @@ def ensure_shortcuts():
         import win32com.client
         import shutil
         shell = win32com.client.Dispatch("WScript.Shell")
-        base_dir = Path(__file__).resolve().parent
-        ico_path = base_dir / "assets" / "icon.ico"
-        main_py = base_dir / "main.py"
+        is_frozen = getattr(sys, "frozen", False)
 
-        # Resolve pythonw.exe to prevent terminal window popup when clicking shortcut
-        py_dir = Path(sys.executable).parent
-        pyw_cand = py_dir / "pythonw.exe"
-        if not pyw_cand.exists():
-            which_pyw = shutil.which("pythonw.exe")
-            if which_pyw:
-                pyw_cand = Path(which_pyw)
-        target_exe = str(pyw_cand.resolve()) if pyw_cand.exists() else sys.executable
+        if is_frozen:
+            target_exe = sys.executable
+            target_args = ""
+            work_dir = str(Path(sys.executable).parent)
+            ico_path = ASSETS_DIR / "icon.ico"
+        else:
+            base_dir = Path(__file__).resolve().parent
+            ico_path = base_dir / "assets" / "icon.ico"
+            main_py = base_dir / "main.py"
+            py_dir = Path(sys.executable).parent
+            pyw_cand = py_dir / "pythonw.exe"
+            if not pyw_cand.exists():
+                which_pyw = shutil.which("pythonw.exe")
+                if which_pyw:
+                    pyw_cand = Path(which_pyw)
+            target_exe = str(pyw_cand.resolve()) if pyw_cand.exists() else sys.executable
+            target_args = f'"{main_py}"'
+            work_dir = str(base_dir)
 
         # Start Menu Programs shortcut (forces Windows 11 Taskbar icon resolution)
         try:
@@ -107,8 +115,8 @@ def ensure_shortcuts():
                 lnk_programs = os.path.join(programs_dir, "AirBridge.lnk")
                 s2 = shell.CreateShortcut(lnk_programs)
                 s2.TargetPath = target_exe
-                s2.Arguments = f'"{main_py}"'
-                s2.WorkingDirectory = str(base_dir)
+                s2.Arguments = target_args
+                s2.WorkingDirectory = work_dir
                 s2.IconLocation = f"{ico_path.resolve()},0"
                 s2.Description = "AirBridge - Cross-Device Local Transfer Hub by Chathunga"
                 s2.Save()
@@ -134,8 +142,8 @@ def ensure_shortcuts():
                 lnk_desktop = os.path.join(desktop_dir, "AirBridge.lnk")
                 s = shell.CreateShortcut(lnk_desktop)
                 s.TargetPath = target_exe
-                s.Arguments = f'"{main_py}"'
-                s.WorkingDirectory = str(base_dir)
+                s.Arguments = target_args
+                s.WorkingDirectory = work_dir
                 s.IconLocation = f"{ico_path.resolve()},0"
                 s.Description = "AirBridge - Cross-Device Local Transfer Hub by Chathunga"
                 s.Save()
