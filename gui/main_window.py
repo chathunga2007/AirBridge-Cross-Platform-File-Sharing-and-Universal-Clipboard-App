@@ -6,6 +6,7 @@ Created by Chathunga
 
 import os
 import sys
+import time
 import shutil
 import logging
 import subprocess
@@ -258,7 +259,6 @@ class LightboxDialog(QtWidgets.QDialog):
         name_lbl.setStyleSheet("color: #38bdf8; font-weight: 700; font-size: 12px;")
         bottom_bar.addWidget(name_lbl)
         bottom_bar.addStretch()
-
         open_btn = QtWidgets.QPushButton("Open Original")
         open_btn.setStyleSheet("""
             QPushButton {
@@ -271,7 +271,14 @@ class LightboxDialog(QtWidgets.QDialog):
             }
             QPushButton:hover { background-color: #0369a1; }
         """)
-        open_btn.clicked.connect(lambda: os.startfile(image_path))
+
+        def _open_orig():
+            if os.path.exists(image_path):
+                try:
+                    os.startfile(image_path)
+                except Exception as ex:
+                    QtWidgets.QMessageBox.warning(self, "Error", f"Could not open file: {ex}")
+        open_btn.clicked.connect(_open_orig)
         bottom_bar.addWidget(open_btn)
 
         close_btn = QtWidgets.QPushButton("Close")
@@ -421,7 +428,7 @@ class FileItemRow(QtWidgets.QFrame):
     def _show_in_folder(self):
         if self.filepath and os.path.exists(self.filepath):
             try:
-                subprocess.Popen(f'explorer /select,"{os.path.abspath(self.filepath)}"')
+                subprocess.Popen(["explorer", f"/select,{os.path.abspath(self.filepath)}"])
             except Exception as e:
                 QtWidgets.QMessageBox.warning(self, "Error", f"Could not locate file: {e}")
 
@@ -452,8 +459,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _init_window(self):
         self.setWindowTitle(f"{APP_NAME} - Local AirDrop & Universal Clipboard Hub")
-        self.resize(1020, 750)
-        self.setMinimumSize(880, 650)
+        self.resize(1100, 720)
+        self.setMinimumSize(850, 520)
 
         # Set Window Icon (Prioritize multi-res icon.ico for Windows Taskbar and Titlebar)
         ico_path = ASSETS_DIR / "icon.ico"
@@ -752,14 +759,45 @@ class MainWindow(QtWidgets.QMainWindow):
         main_layout.addLayout(header_layout)
 
         # -------------------------------------------------------------
-        # BODY SPLIT: Left Panel (Pairing, Devices Fleet, Actions), Right Panel (Drop Zone, Quick Notes, Transfer Feed)
+        # BODY SCROLL AREA: Houses Left & Right panels, ensuring seamless responsiveness on all window sizes!
         # -------------------------------------------------------------
-        body_layout = QtWidgets.QHBoxLayout()
+        self.body_scroll = QtWidgets.QScrollArea()
+        self.body_scroll.setWidgetResizable(True)
+        self.body_scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        self.body_scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: rgba(15, 23, 42, 0.4);
+                width: 6px;
+                border-radius: 3px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(56, 189, 248, 0.35);
+                border-radius: 3px;
+                min-height: 25px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(56, 189, 248, 0.7);
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
+
+        body_container = QtWidgets.QWidget()
+        body_container.setStyleSheet("background: transparent;")
+        body_layout = QtWidgets.QHBoxLayout(body_container)
+        body_layout.setContentsMargins(0, 0, 4, 0)
         body_layout.setSpacing(18)
 
         # ================= LEFT COLUMN =================
         left_col = QtWidgets.QVBoxLayout()
-        left_col.setSpacing(12)
+        left_col.setSpacing(10)
 
         # 1. QR Code Pairing Card
         qr_card = QtWidgets.QFrame()
@@ -1044,7 +1082,8 @@ class MainWindow(QtWidgets.QMainWindow):
         right_col.addWidget(feed_card, stretch=1)
         body_layout.addLayout(right_col, stretch=6)
 
-        main_layout.addLayout(body_layout, stretch=1)
+        self.body_scroll.setWidget(body_container)
+        main_layout.addWidget(self.body_scroll, stretch=1)
 
         # -------------------------------------------------------------
         # BOTTOM STATUS & TELEMETRY DOCK (FROSTED GLASS HUD)
@@ -1327,12 +1366,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.note_input.clear()
 
     def _handle_files_dropped(self, paths: List[str]):
-        """Handle files dragged and dropped onto the PC window to beam to mobile."""
+        """Handle files and folders dragged and dropped onto the PC window to beam to mobile."""
         copied_items = []
         for p in paths:
             src = Path(p)
             if not src.exists():
                 continue
+
             if src.is_file():
                 dest = DOWNLOADS_DIR / src.name
                 counter = 1
@@ -1340,38 +1380,51 @@ class MainWindow(QtWidgets.QMainWindow):
                     dest = DOWNLOADS_DIR / f"{src.stem}_{counter}{src.suffix}"
                     counter += 1
                 shutil.copy2(src, dest)
+            elif src.is_dir():
+                # Folder dropped: automatically archive into a clean zip package
+                dest = DOWNLOADS_DIR / f"{src.name}.zip"
+                counter = 1
+                while dest.exists():
+                    dest = DOWNLOADS_DIR / f"{src.name}_{counter}.zip"
+                    counter += 1
+                base_zip = str(dest.with_suffix(""))
+                shutil.make_archive(base_zip, "zip", root_dir=src)
+            else:
+                continue
 
-                filesize = dest.stat().st_size
-                ext = dest.suffix.lower()
-                is_image = ext in {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+            filesize = dest.stat().st_size
+            ext = dest.suffix.lower()
+            is_image = ext in {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+            now_time = time.strftime("%I:%M %p")
 
-                file_dict = {
-                    "id": dest.name,
-                    "filename": dest.name,
-                    "filepath": str(dest),
-                    "filesize": filesize,
-                    "is_image": is_image,
-                    "converted_from_heic": False,
-                    "source": "PC",
-                    "url": f"/api/download/{dest.name}",
-                }
+            file_dict = {
+                "id": dest.name,
+                "filename": dest.name,
+                "filepath": str(dest),
+                "filesize": filesize,
+                "is_image": is_image,
+                "converted_from_heic": False,
+                "source": "PC",
+                "uploaded_at": now_time,
+                "url": f"/api/download/{dest.name}",
+            }
 
-                settings.shared_files.insert(0, SharedFileItem(
-                    file_id=dest.name,
-                    filename=dest.name,
-                    filepath=str(dest),
-                    filesize=filesize,
-                    uploaded_at="",
-                    is_image=is_image,
-                    source="PC"
-                ))
+            settings.shared_files.insert(0, SharedFileItem(
+                file_id=dest.name,
+                filename=dest.name,
+                filepath=str(dest),
+                filesize=filesize,
+                uploaded_at=now_time,
+                is_image=is_image,
+                source="PC"
+            ))
 
-                ws_manager.notify_file_shared(file_dict)
-                self._handle_file_received(file_dict)
-                copied_items.append(dest.name)
+            ws_manager.notify_file_shared(file_dict)
+            self._handle_file_received(file_dict)
+            copied_items.append(dest.name)
 
         if copied_items:
-            self.status_lbl.setText(f"🚀 Beamed {len(copied_items)} file(s) to connected phones!")
+            self.status_lbl.setText(f"🚀 Beamed {len(copied_items)} item(s) to connected phones!")
 
     def _export_all_zip(self):
         """Package all shared files into a single ZIP archive in Downloads."""
@@ -1406,7 +1459,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             self.status_lbl.setText(f"📦 Created ZIP: {target_zip.name}")
             self.tray.show_toast("ZIP Archive Created", f"Saved {target_zip.name} to Downloads")
-            subprocess.Popen(f'explorer /select,"{str(target_zip)}"', shell=True)
+            subprocess.Popen(["explorer", f"/select,{os.path.abspath(target_zip)}"])
         except Exception as e:
             logger.error(f"Failed to create ZIP: {e}")
             self.status_lbl.setText(f"❌ ZIP creation error: {e}")
@@ -1466,7 +1519,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 mime_type=mime or "video/mp4"
             )
             settings.stream_queue[file_id] = item
-            ws_manager.notify_stream_queue(list(settings.stream_queue.values()))
+            queue_list = [
+                {
+                    "id": it.file_id,
+                    "filename": it.filename,
+                    "filesize": it.filesize,
+                    "mime_type": it.mime_type,
+                    "url": f"/api/stream/{it.file_id}",
+                }
+                for it in settings.stream_queue.values()
+            ]
+            ws_manager.notify_stream_queue(queue_list)
             self.status_lbl.setText(f"🎥 Added '{p.name}' to iPhone Stream Queue (No download required)!")
             self.tray.show_toast("AirBridge Media Streamer", f"'{p.name}' ready for iPhone streaming!")
 
