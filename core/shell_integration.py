@@ -35,12 +35,17 @@ def install_shell_menu() -> bool:
     if sys.platform != "win32":
         return False
     try:
-        import winreg
-        base_dir = Path(__file__).resolve().parent.parent
-        main_py = (base_dir / "main.py").resolve()
-        ico_path = (base_dir / "assets" / "icon.ico").resolve()
-
-        python_exe = sys.executable
+        is_frozen = getattr(sys, "frozen", False)
+        if is_frozen:
+            cmd_str = f'"{sys.executable}" "%1"'
+            from core.config import ASSETS_DIR
+            ico_path = (ASSETS_DIR / "icon.ico").resolve()
+        else:
+            base_dir = Path(__file__).resolve().parent.parent
+            main_py = (base_dir / "main.py").resolve()
+            ico_path = (base_dir / "assets" / "icon.ico").resolve()
+            python_exe = sys.executable
+            cmd_str = f'"{python_exe}" "{main_py}" "%1"'
 
         # Create shell\AirBridge key
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, REG_SUBKEY) as key:
@@ -51,7 +56,6 @@ def install_shell_menu() -> bool:
         # Create shell\AirBridge\command key
         cmd_subkey = f"{REG_SUBKEY}\\command"
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, cmd_subkey) as key:
-            cmd_str = f'"{python_exe}" "{main_py}" "%1"'
             winreg.SetValueEx(key, "", 0, winreg.REG_SZ, cmd_str)
 
         logger.info("Successfully registered 'Beam with AirBridge' Windows Explorer context menu.")
