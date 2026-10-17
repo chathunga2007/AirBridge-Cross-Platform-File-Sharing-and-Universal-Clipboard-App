@@ -241,7 +241,7 @@ async def toggle_clipboard_sync(request: Request):
 # Turbo LAN High-Speed File Upload Engine (10GB+ Chunk Streaming)
 # ---------------------------------------------------------
 
-CHUNK_SIZE = 4 * 1024 * 1024  # 4MB streaming buffer for gigabit LAN throughput
+CHUNK_SIZE = 8 * 1024 * 1024  # 8MB streaming buffer for gigabit Wi-Fi LAN line rate throughput
 
 
 @app.post("/api/upload")
@@ -350,7 +350,12 @@ async def list_shared_files():
 
 @app.get("/api/download/{filename}")
 async def download_shared_file(filename: str):
-    """High-speed Turbo streaming file download from PC to Mobile with 4MB chunk buffer."""
+    """
+    High-speed Turbo streaming file download from PC to Mobile with 8MB chunk buffer.
+    Fully RFC 5987 / RFC 6266 compliant Content-Disposition encoding for Unicode & Sinhala filenames.
+    """
+    from urllib.parse import quote
+
     target_path = DOWNLOADS_DIR / filename
     if not target_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
@@ -363,8 +368,14 @@ async def download_shared_file(filename: str):
             while chunk := f.read(CHUNK_SIZE):
                 yield chunk
 
+    # Clean ASCII fallback and percent-encoded UTF-8 filename for Unicode compatibility
+    safe_ascii = filename.encode("ascii", "ignore").decode("ascii").replace('"', '').strip()
+    if not safe_ascii:
+        safe_ascii = "downloaded_file"
+    encoded_fn = quote(filename)
+
     headers = {
-        "Content-Disposition": f'attachment; filename="{filename}"',
+        "Content-Disposition": f'attachment; filename="{safe_ascii}"; filename*=UTF-8\'\'{encoded_fn}',
         "Content-Length": str(file_size),
         "Accept-Ranges": "bytes",
     }
