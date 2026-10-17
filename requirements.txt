@@ -9,3 +9,4 @@ mss>=9.0.1
 qrcode[pil]>=7.4.2
 psutil>=5.9.8
 PyQt6>=6.6.0
+pywin32>=306
