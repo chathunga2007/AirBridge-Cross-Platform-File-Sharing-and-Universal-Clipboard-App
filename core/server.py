@@ -259,7 +259,8 @@ async def upload_files(files: List[UploadFile] = File(...)):
     uploaded_items = []
 
     for file in files:
-        filename = file.filename or "shared_file"
+        raw_name = file.filename or "shared_file"
+        filename = os.path.basename(raw_name) or "shared_file"
         converted_heic = False
 
         # Avoid filename collision
@@ -359,10 +360,11 @@ async def download_shared_file(filename: str):
     High-speed Turbo streaming file download from PC to Mobile with 8MB chunk buffer.
     Fully RFC 5987 / RFC 6266 compliant Content-Disposition encoding for Unicode & Sinhala filenames.
     """
-    from urllib.parse import quote
+    from urllib.parse import quote, unquote
 
-    target_path = DOWNLOADS_DIR / filename
-    if not target_path.exists():
+    clean_filename = os.path.basename(unquote(filename))
+    target_path = (DOWNLOADS_DIR / clean_filename).resolve()
+    if not str(target_path).startswith(str(DOWNLOADS_DIR.resolve())) or not target_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
 
     mime_type, _ = mimetypes.guess_type(str(target_path))
@@ -507,10 +509,14 @@ async def benchmark_upload(request: Request):
     LAN Throughput Benchmark Endpoint (Upload Test).
     Measures local Wi-Fi upload throughput from mobile to PC.
     """
+    from starlette.requests import ClientDisconnect
     start_time = time.perf_counter()
     total_bytes = 0
-    async for chunk in request.stream():
-        total_bytes += len(chunk)
+    try:
+        async for chunk in request.stream():
+            total_bytes += len(chunk)
+    except ClientDisconnect:
+        logger.debug("Benchmark upload client disconnected early.")
     elapsed = max(0.001, time.perf_counter() - start_time)
     mbps = (total_bytes * 8) / (elapsed * 1_000_000)
     mb_s = (total_bytes / (1024 * 1024)) / elapsed
@@ -702,8 +708,9 @@ async def stream_media_range(file_id: str, request: Request, range: Optional[str
     """
     item = settings.stream_queue.get(file_id)
     if not item or not os.path.exists(item.filepath):
-        fallback_path = DOWNLOADS_DIR / file_id
-        if fallback_path.exists():
+        clean_file_id = os.path.basename(file_id)
+        fallback_path = (DOWNLOADS_DIR / clean_file_id).resolve()
+        if fallback_path.exists() and str(fallback_path).startswith(str(DOWNLOADS_DIR.resolve())):
             mime, _ = mimetypes.guess_type(str(fallback_path))
             item = StreamItem(
                 file_id=file_id,
