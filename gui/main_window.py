@@ -155,6 +155,20 @@ class DropZoneWidget(QtWidgets.QFrame):
 
         self._update_style()
 
+    def set_rgb_color(self, hex_color: str):
+        """Dynamically pulse dashed border with chromatic RGB hues."""
+        if not self._is_drag_over:
+            self.setStyleSheet(f"""
+                QFrame#dropZone {{
+                    background-color: rgba(15, 23, 42, 0.65);
+                    border: 2px dashed {hex_color};
+                    border-radius: 16px;
+                }}
+                QFrame#dropZone:hover {{
+                    background-color: rgba(30, 41, 59, 0.85);
+                }}
+            """)
+
     def _update_style(self):
         if self._is_drag_over:
             self.setStyleSheet("""
@@ -208,6 +222,74 @@ class DropZoneWidget(QtWidgets.QFrame):
                 self.files_dropped.emit(files)
 
 
+class LightboxDialog(QtWidgets.QDialog):
+    """Ultra-sleek dark frosted glass modal for full-resolution image preview."""
+
+    def __init__(self, image_path: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Preview - {Path(image_path).name}")
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowType.WindowMaximizeButtonHint | QtCore.Qt.WindowType.WindowCloseButtonHint)
+        self.resize(850, 620)
+        self.setStyleSheet("QDialog { background-color: #030712; }")
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("border: none; background: transparent;")
+
+        lbl = QtWidgets.QLabel()
+        lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        pix = QtGui.QPixmap(image_path)
+        if not pix.isNull():
+            lbl.setPixmap(pix.scaled(1200, 900, QtCore.Qt.AspectRatioMode.KeepAspectRatio, QtCore.Qt.TransformationMode.SmoothTransformation))
+        else:
+            lbl.setText("Image preview unavailable.")
+            lbl.setStyleSheet("color: #94a3b8; font-size: 13px;")
+
+        scroll.setWidget(lbl)
+        layout.addWidget(scroll, stretch=1)
+
+        bottom_bar = QtWidgets.QHBoxLayout()
+        name_lbl = QtWidgets.QLabel(Path(image_path).name)
+        name_lbl.setStyleSheet("color: #38bdf8; font-weight: 700; font-size: 12px;")
+        bottom_bar.addWidget(name_lbl)
+        bottom_bar.addStretch()
+
+        open_btn = QtWidgets.QPushButton("Open Original")
+        open_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #0284c7;
+                color: #ffffff;
+                border-radius: 6px;
+                padding: 6px 14px;
+                font-weight: 600;
+                font-size: 11px;
+            }
+            QPushButton:hover { background-color: #0369a1; }
+        """)
+        open_btn.clicked.connect(lambda: os.startfile(image_path))
+        bottom_bar.addWidget(open_btn)
+
+        close_btn = QtWidgets.QPushButton("Close")
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(255, 255, 255, 0.1);
+                color: #e2e8f0;
+                border-radius: 6px;
+                padding: 6px 14px;
+                font-size: 11px;
+            }
+            QPushButton:hover { background-color: rgba(255, 255, 255, 0.2); }
+        """)
+        close_btn.clicked.connect(self.accept)
+        bottom_bar.addWidget(close_btn)
+
+        layout.addLayout(bottom_bar)
+
+
 class FileItemRow(QtWidgets.QFrame):
     """Custom Row Widget for Transfer Activity Feed."""
 
@@ -259,6 +341,28 @@ class FileItemRow(QtWidgets.QFrame):
 
         layout.addLayout(info_layout, stretch=1)
 
+        # Action: Preview Button for Images
+        if self.file_data.get("is_image") and self.filepath and os.path.exists(self.filepath):
+            preview_btn = QtWidgets.QPushButton("Preview")
+            preview_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+            preview_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: rgba(168, 85, 247, 0.15);
+                    color: #c084fc;
+                    border: 1px solid rgba(168, 85, 247, 0.35);
+                    border-radius: 6px;
+                    padding: 4px 10px;
+                    font-size: 11px;
+                    font-weight: 600;
+                }
+                QPushButton:hover {
+                    background-color: #9333ea;
+                    color: #ffffff;
+                }
+            """)
+            preview_btn.clicked.connect(self._preview_image)
+            layout.addWidget(preview_btn)
+
         # Action: Open File
         open_btn = QtWidgets.QPushButton("Open")
         open_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -301,6 +405,11 @@ class FileItemRow(QtWidgets.QFrame):
         folder_btn.clicked.connect(self._show_in_folder)
         layout.addWidget(folder_btn)
 
+    def _preview_image(self):
+        if self.filepath and os.path.exists(self.filepath):
+            dialog = LightboxDialog(self.filepath, self)
+            dialog.exec()
+
     def _open_file(self):
         if self.filepath and os.path.exists(self.filepath):
             try:
@@ -335,6 +444,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._init_window()
         self._init_signals()
         self._init_ui()
+        self._init_rgb_glow()
+        self._init_telemetry()
         self._init_tray()
         self._load_pairing_qr()
 
@@ -356,14 +467,14 @@ class MainWindow(QtWidgets.QMainWindow):
             self.setWindowIcon(app_icon)
             QtWidgets.QApplication.setWindowIcon(app_icon)
 
-        # Dark Glassmorphism Palette & Styling
+        # Dark Glassmorphism Palette & Styling (Native font fallback for Sinhala & Emojis)
         self.setStyleSheet("""
             QMainWindow {
                 background-color: #070b14;
             }
             QWidget {
                 color: #f8fafc;
-                font-family: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+                font-family: 'Segoe UI', 'Nirmala UI', 'Iskoola Pota', system-ui, sans-serif;
             }
             QScrollArea {
                 border: none;
@@ -716,7 +827,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.devices_scroll = QtWidgets.QScrollArea()
         self.devices_scroll.setWidgetResizable(True)
-        self.devices_scroll.setMaximumHeight(140)
+        self.devices_scroll.setMinimumHeight(90)
+        self.devices_scroll.setMaximumHeight(200)
         self.devices_scroll_content = QtWidgets.QWidget()
         self.devices_list_layout = QtWidgets.QVBoxLayout(self.devices_scroll_content)
         self.devices_list_layout.setContentsMargins(0, 0, 0, 0)
@@ -787,6 +899,7 @@ class MainWindow(QtWidgets.QMainWindow):
         action_grid.addWidget(open_dl_btn, 1, 1)
 
         left_col.addLayout(action_grid)
+        left_col.addStretch(1)
         body_layout.addLayout(left_col, stretch=4)
 
         # ================= RIGHT COLUMN =================
@@ -905,23 +1018,159 @@ class MainWindow(QtWidgets.QMainWindow):
         right_col.addWidget(feed_card, stretch=1)
         body_layout.addLayout(right_col, stretch=6)
 
-        main_layout.addLayout(body_layout)
+        main_layout.addLayout(body_layout, stretch=1)
 
         # -------------------------------------------------------------
-        # BOTTOM STATUS BAR
+        # BOTTOM STATUS & TELEMETRY DOCK (FROSTED GLASS HUD)
         # -------------------------------------------------------------
-        status_bar = QtWidgets.QHBoxLayout()
-        self.status_lbl = QtWidgets.QLabel("⚡ AirBridge Turbo Engine Ready • Waiting for Mobile pairing")
-        self.status_lbl.setStyleSheet("font-size: 11px; color: #64748b; font-weight: 500;")
-        status_bar.addWidget(self.status_lbl)
+        self.footer_dock = QtWidgets.QFrame()
+        self.footer_dock.setObjectName("footerDock")
+        self.footer_dock.setStyleSheet("""
+            QFrame#footerDock {
+                background-color: rgba(15, 23, 42, 0.85);
+                border: 1px solid rgba(56, 189, 248, 0.2);
+                border-radius: 12px;
+            }
+        """)
+        footer_layout = QtWidgets.QHBoxLayout(self.footer_dock)
+        footer_layout.setContentsMargins(12, 6, 12, 6)
+        footer_layout.setSpacing(12)
 
-        status_bar.addStretch()
+        # Pulse Dot + Status Text
+        self.status_dot = QtWidgets.QLabel("●")
+        self.status_dot.setStyleSheet("color: #34d399; font-size: 13px; background: transparent;")
+        footer_layout.addWidget(self.status_dot)
 
-        credits_lbl = QtWidgets.QLabel(f"{APP_NAME} v{APP_VERSION} • Developed with ❤️ by {CREATOR}")
-        credits_lbl.setStyleSheet("font-size: 11px; color: #475569;")
-        status_bar.addWidget(credits_lbl)
+        self.status_lbl = QtWidgets.QLabel("⚡ AirBridge Turbo LAN Engine Ready • Waiting for Mobile pairing")
+        self.status_lbl.setStyleSheet("font-size: 11px; color: #94a3b8; font-weight: 500; background: transparent;")
+        footer_layout.addWidget(self.status_lbl)
 
-        main_layout.addLayout(status_bar)
+        footer_layout.addStretch()
+
+        # Telemetry Pill: Disk Free & Zero Data Reassurance
+        self.telemetry_pill = QtWidgets.QLabel("💾 PC Storage: Checking... • ⚡ 0 MB Data (Local Wi-Fi)")
+        self.telemetry_pill.setStyleSheet("""
+            color: #38bdf8;
+            background-color: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 10px;
+            font-family: monospace;
+            font-weight: 600;
+        """)
+        footer_layout.addWidget(self.telemetry_pill)
+
+        # RGB Chroma Lights Toggle
+        self.rgb_toggle_btn = QtWidgets.QPushButton("🌈 RGB Glow: ON")
+        self.rgb_toggle_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.rgb_toggle_btn.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(168, 85, 247, 0.2);
+                color: #e9d5ff;
+                border: 1px solid rgba(168, 85, 247, 0.4);
+                border-radius: 6px;
+                padding: 3px 10px;
+                font-size: 10px;
+                font-weight: 700;
+            }
+            QPushButton:hover {
+                background-color: #9333ea;
+                color: #ffffff;
+            }
+        """)
+        self.rgb_toggle_btn.clicked.connect(self._toggle_rgb_glow)
+        footer_layout.addWidget(self.rgb_toggle_btn)
+
+        # Creator Branding
+        credits_lbl = QtWidgets.QLabel(f"{APP_NAME} v{APP_VERSION} • Architected with ❤️ by {CREATOR}")
+        credits_lbl.setStyleSheet("font-size: 11px; color: #64748b; font-weight: 500; background: transparent;")
+        footer_layout.addWidget(credits_lbl)
+
+        main_layout.addWidget(self.footer_dock)
+
+    def _init_rgb_glow(self):
+        """Initialize dynamic RGB chromatic pulse lighting."""
+        self.rgb_active = True
+        self.rgb_hue = 180
+        self.rgb_timer = QtCore.QTimer(self)
+        self.rgb_timer.setInterval(40)
+        self.rgb_timer.timeout.connect(self._step_rgb_glow)
+        self.rgb_timer.start()
+
+    def _step_rgb_glow(self):
+        if not self.rgb_active:
+            return
+        self.rgb_hue = (self.rgb_hue + 1) % 360
+        qcolor = QtGui.QColor.fromHsl(self.rgb_hue, 220, 160)
+        hex_col = qcolor.name()
+        if hasattr(self, "drop_zone") and not self.drop_zone._is_drag_over:
+            self.drop_zone.set_rgb_color(hex_col)
+        if hasattr(self, "footer_dock"):
+            self.footer_dock.setStyleSheet(f"""
+                QFrame#footerDock {{
+                    background-color: rgba(15, 23, 42, 0.85);
+                    border: 1px solid {hex_col}55;
+                    border-radius: 12px;
+                }}
+            """)
+
+    def _toggle_rgb_glow(self):
+        self.rgb_active = not self.rgb_active
+        if self.rgb_active:
+            self.rgb_toggle_btn.setText("🌈 RGB Glow: ON")
+            self.rgb_toggle_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: rgba(168, 85, 247, 0.25);
+                    color: #e9d5ff;
+                    border: 1px solid #c084fc;
+                    border-radius: 6px;
+                    padding: 3px 10px;
+                    font-size: 10px;
+                    font-weight: 700;
+                }
+            """)
+        else:
+            self.rgb_toggle_btn.setText("🌈 RGB Glow: OFF")
+            self.rgb_toggle_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: rgba(255, 255, 255, 0.05);
+                    color: #64748b;
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 6px;
+                    padding: 3px 10px;
+                    font-size: 10px;
+                    font-weight: 700;
+                }
+            """)
+            if hasattr(self, "drop_zone"):
+                self.drop_zone._update_style()
+            if hasattr(self, "footer_dock"):
+                self.footer_dock.setStyleSheet("""
+                    QFrame#footerDock {
+                        background-color: rgba(15, 23, 42, 0.85);
+                        border: 1px solid rgba(56, 189, 248, 0.2);
+                        border-radius: 12px;
+                    }
+                """)
+
+    def _init_telemetry(self):
+        """Initialize PC drive space and network telemetry updater."""
+        self.telemetry_timer = QtCore.QTimer(self)
+        self.telemetry_timer.setInterval(4000)
+        self.telemetry_timer.timeout.connect(self._update_system_telemetry)
+        self.telemetry_timer.start()
+        self._update_system_telemetry()
+
+    def _update_system_telemetry(self):
+        try:
+            import shutil
+            total, used, free = shutil.disk_usage(DOWNLOADS_DIR)
+            free_gb = free / (1024 ** 3)
+            if hasattr(self, "telemetry_pill"):
+                self.telemetry_pill.setText(f"💾 PC Free: {free_gb:.1f} GB • ⚡ 0 MB Data (Local Wi-Fi)")
+        except Exception:
+            pass
 
     def _init_tray(self):
         icon_path = ASSETS_DIR / "icon.ico"
