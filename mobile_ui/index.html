@@ -104,34 +104,34 @@
 <body class="flex flex-col min-h-screen selection:bg-brand-500 selection:text-white">
 
   <!-- TOP APP BAR -->
-  <header class="sticky top-0 z-40 glass-panel border-b border-slate-800/80 px-4 py-2.5">
-    <div class="max-w-md mx-auto flex items-center justify-between">
-      <div class="flex items-center space-x-2.5">
-        <img src="/assets/AirBridge-Icon.png" alt="AirBridge" class="w-8 h-8 rounded-xl shadow-lg ring-1 ring-cyan-500/30">
+  <header class="sticky top-0 z-40 glass-panel border-b border-slate-800/80 px-3 py-2">
+    <div class="max-w-md mx-auto flex items-center justify-between gap-1.5">
+      <div class="flex items-center space-x-2 shrink-0">
+        <img src="/assets/AirBridge-Icon.png" alt="AirBridge" class="w-7 h-7 rounded-lg shadow-lg ring-1 ring-cyan-500/30">
         <div>
-          <div class="flex items-center space-x-1.5">
-            <span class="font-extrabold text-base tracking-tight bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-300 bg-clip-text text-transparent">AirBridge</span>
-            <span class="text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800/50">TURBO</span>
+          <div class="flex items-center space-x-1">
+            <span class="font-extrabold text-sm sm:text-base tracking-tight bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-300 bg-clip-text text-transparent">AirBridge</span>
+            <span class="text-[8px] uppercase font-bold tracking-widest px-1 py-0.2 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800/50 hidden xs:inline-block">TURBO</span>
           </div>
-          <p class="text-[10px] text-slate-400 leading-none">by Chathunga</p>
+          <p class="text-[9px] text-slate-400 leading-none">by Chathunga</p>
         </div>
       </div>
 
       <!-- Live Connection & Hub Button -->
-      <div class="flex items-center space-x-2">
-        <button onclick="openSpeedtestModal()" title="LAN Wi-Fi Speed Test" class="p-1.5 rounded-lg glass-panel hover:text-cyan-400 text-slate-300 transition text-xs flex items-center gap-1 px-2.5 border border-cyan-500/20 active:scale-95">
+      <div class="flex items-center space-x-1.5 shrink-0">
+        <button onclick="openSpeedtestModal()" title="LAN Wi-Fi Speed Test" class="p-1.5 rounded-lg glass-panel hover:text-cyan-400 text-slate-300 transition text-xs flex items-center gap-1 px-2 border border-cyan-500/20 active:scale-95">
           <i data-lucide="gauge" class="w-3.5 h-3.5 text-cyan-400"></i>
-          <span class="text-[10px] font-bold">Speed</span>
+          <span class="text-[10px] font-bold hidden sm:inline">Speed</span>
         </button>
 
         <button id="soundToggleBtn" onclick="toggleSound()" class="p-1.5 rounded-lg glass-panel hover:text-cyan-400 text-slate-400 transition text-xs">
-          <i id="soundIcon" data-lucide="volume-2" class="w-4 h-4"></i>
+          <i id="soundIcon" data-lucide="volume-2" class="w-3.5 h-3.5"></i>
         </button>
 
-        <div onclick="openDevicesModal()" class="cursor-pointer flex items-center space-x-1.5 px-2.5 py-1 rounded-full glass-panel-elevated text-xs active:scale-95 transition">
-          <span id="statusDot" class="w-2 h-2 rounded-full bg-emerald-400 status-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
-          <span id="statusText" class="font-semibold text-slate-200">Connected</span>
-          <span id="pingBadge" class="text-[10px] font-mono text-cyan-400 pl-1 border-l border-slate-700">12ms</span>
+        <div onclick="openDevicesModal()" class="cursor-pointer flex items-center space-x-1 px-2 py-1 rounded-full glass-panel-elevated text-xs active:scale-95 transition whitespace-nowrap shrink-0">
+          <span id="statusDot" class="w-2 h-2 rounded-full bg-emerald-400 status-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)] shrink-0"></span>
+          <span id="statusText" class="font-semibold text-slate-200 text-[10px] hidden xs:inline">Online</span>
+          <span id="pingBadge" class="text-[10px] font-mono text-cyan-400 pl-1 border-l border-slate-700/80">12ms</span>
         </div>
       </div>
     </div>
@@ -144,12 +144,12 @@
     <section id="tab-transfer" class="tab-content active space-y-4">
       
       <!-- ZERO-DATA & GIGABIT WI-FI REASSURANCE BANNER -->
-      <div class="glass-panel p-2.5 rounded-xl border border-emerald-500/30 flex items-center justify-between text-xs bg-emerald-950/20 shadow-lg">
+      <div class="glass-panel p-2.5 rounded-xl border border-emerald-500/30 flex flex-wrap items-center justify-between gap-1 text-xs bg-emerald-950/20 shadow-lg">
         <div class="flex items-center space-x-2">
           <span class="w-2 h-2 rounded-full bg-emerald-400 status-pulse"></span>
-          <span class="text-emerald-300 font-bold">100% Free Local Wi-Fi</span>
+          <span class="text-emerald-300 font-bold text-[11px] sm:text-xs">100% Free Local Wi-Fi</span>
         </div>
-        <span class="text-[10px] text-slate-300 font-mono">0 MB Mobile Data • 80+ MB/s LAN</span>
+        <span class="text-[10px] text-slate-300 font-mono">0 MB Data • 80+ MB/s LAN</span>
       </div>
 
       <!-- UPLOAD HERO CARD -->
@@ -176,30 +176,30 @@
         <!-- Action Buttons -->
         <div class="grid grid-cols-3 gap-2 mb-3">
           <button onclick="document.getElementById('photoInput').click()" 
-                  class="flex flex-col items-center justify-center p-2.5 rounded-xl bg-gradient-to-b from-slate-800/90 to-slate-900 border border-slate-700/80 hover:border-cyan-500/50 active:scale-95 transition">
-            <div class="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center mb-1 text-cyan-400">
+                  class="flex flex-col items-center justify-center p-2 rounded-xl bg-gradient-to-b from-slate-800/90 to-slate-900 border border-slate-700/80 hover:border-cyan-500/50 active:scale-95 transition overflow-hidden">
+            <div class="w-7 h-7 rounded-lg bg-cyan-500/15 flex items-center justify-center mb-1 text-cyan-400">
               <i data-lucide="image" class="w-4 h-4"></i>
             </div>
-            <span class="text-[11px] font-bold text-white">Photos & 4K</span>
-            <span class="text-[9px] text-slate-400">Gallery</span>
+            <span class="text-[10px] font-bold text-white truncate w-full text-center">Photos & 4K</span>
+            <span class="text-[8px] text-slate-400 truncate">Gallery</span>
           </button>
 
           <button onclick="document.getElementById('fileInput').click()" 
-                  class="flex flex-col items-center justify-center p-2.5 rounded-xl bg-gradient-to-b from-slate-800/90 to-slate-900 border border-slate-700/80 hover:border-indigo-500/50 active:scale-95 transition">
-            <div class="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center mb-1 text-indigo-400">
+                  class="flex flex-col items-center justify-center p-2 rounded-xl bg-gradient-to-b from-slate-800/90 to-slate-900 border border-slate-700/80 hover:border-indigo-500/50 active:scale-95 transition overflow-hidden">
+            <div class="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center mb-1 text-indigo-400">
               <i data-lucide="file-up" class="w-4 h-4"></i>
             </div>
-            <span class="text-[11px] font-bold text-white">10GB+ Files</span>
-            <span class="text-[9px] text-slate-400">Browse</span>
+            <span class="text-[10px] font-bold text-white truncate w-full text-center">10GB+ Files</span>
+            <span class="text-[8px] text-slate-400 truncate">Browse</span>
           </button>
 
           <button onclick="document.getElementById('cameraInput').click()" 
-                  class="flex flex-col items-center justify-center p-2.5 rounded-xl bg-gradient-to-b from-slate-800/90 to-slate-900 border border-emerald-500/40 hover:border-emerald-400 active:scale-95 transition">
-            <div class="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-1 text-emerald-400">
+                  class="flex flex-col items-center justify-center p-2 rounded-xl bg-gradient-to-b from-slate-800/90 to-slate-900 border border-emerald-500/40 hover:border-emerald-400 active:scale-95 transition overflow-hidden">
+            <div class="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-1 text-emerald-400">
               <i data-lucide="camera" class="w-4 h-4"></i>
             </div>
-            <span class="text-[11px] font-bold text-white">Camera Snap</span>
-            <span class="text-[9px] text-emerald-400">Instant Beam</span>
+            <span class="text-[10px] font-bold text-white truncate w-full text-center">Camera Snap</span>
+            <span class="text-[8px] text-emerald-400 truncate">Instant Beam</span>
           </button>
         </div>
 
@@ -499,6 +499,10 @@
               No media in queue. Tap "Browse PC Media" above to pick any video on your PC!
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+
     <!-- TAB 6: REMOTE (WIRELESS PC TRACKPAD & PRESENTATION REMOTE) -->
     <section id="tab-remote" class="tab-content space-y-4">
       
@@ -782,17 +786,25 @@
     let notesHistory = [];
 
     // Synthesized Web Audio Chimes (Zero external files needed)
+    function getAudioContext() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function playCyberChime(type) {
+      playChime(type === 'beam' ? 'upload' : type === 'note' ? 'note' : 'connect');
+    }
+
     function playChime(type) {
       if (!soundEnabled) return;
       try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-
-        const now = audioCtx.currentTime;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
         osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        gain.connect(ctx.destination);
 
         if (type === 'connect') {
           osc.type = 'sine';
@@ -802,7 +814,7 @@
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
           osc.start(now);
           osc.stop(now + 0.25);
-        } else if (type === 'upload') {
+        } else if (type === 'upload' || type === 'beam') {
           osc.type = 'triangle';
           osc.frequency.setValueAtTime(523.25, now); // C5
           osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
@@ -857,6 +869,8 @@
         targetNav.classList.add('text-cyan-400', 'active');
       }
 
+      lucide.createIcons();
+
       if (tabId === 'clipboard') fetchClipboard();
       if (tabId === 'stream') fetchStreamQueue();
       if (tabId === 'transfer') fetchSharedFiles();
@@ -869,6 +883,7 @@
       const toast = document.createElement('div');
       const bg = type === 'success' ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200' :
                  type === 'error' ? 'bg-rose-950/90 border-rose-500/50 text-rose-200' :
+                 type === 'warning' ? 'bg-amber-950/90 border-amber-500/50 text-amber-200' :
                  'bg-slate-900/90 border-cyan-500/40 text-cyan-200';
       toast.className = `glass-panel-elevated pointer-events-auto border px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2 transform transition-all duration-300 translate-y-[-10px] opacity-0 ${bg}`;
       toast.innerHTML = `<span>${message}</span>`;
@@ -1695,6 +1710,63 @@
         const elapsed = performance.now() - touchStartTime;
         if (!touchMoved && elapsed < 280) {
           sendMouseClick('left');
+        }
+      }, { passive: false });
+
+      // Mouse/Pointer and wheel support for laptop browsers & desktop testing
+      let isPointerDown = false;
+      pad.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'touch') return;
+        isPointerDown = true;
+        try { pad.setPointerCapture(e.pointerId); } catch(ex) {}
+        touchStartX = e.clientX;
+        touchStartY = e.clientY;
+        lastTouchX = touchStartX;
+        lastTouchY = touchStartY;
+        touchStartTime = performance.now();
+        touchMoved = false;
+      });
+
+      pad.addEventListener('pointermove', (e) => {
+        if (e.pointerType === 'touch' || !isPointerDown) return;
+        const curX = e.clientX;
+        const curY = e.clientY;
+        const dx = curX - lastTouchX;
+        const dy = curY - lastTouchY;
+        lastTouchX = curX;
+        lastTouchY = curY;
+
+        if (Math.abs(curX - touchStartX) > 3 || Math.abs(curY - touchStartY) > 3) {
+          touchMoved = true;
+        }
+
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
+            type: 'remote_mouse_move',
+            dx: dx,
+            dy: dy,
+            sens: sensitivity
+          }));
+        }
+      });
+
+      pad.addEventListener('pointerup', (e) => {
+        if (e.pointerType === 'touch' || !isPointerDown) return;
+        isPointerDown = false;
+        try { pad.releasePointerCapture(e.pointerId); } catch(ex) {}
+        const elapsed = performance.now() - touchStartTime;
+        if (!touchMoved && elapsed < 280) {
+          sendMouseClick('left');
+        }
+      });
+
+      pad.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
+            type: 'remote_mouse_scroll',
+            delta: e.deltaY > 0 ? -1 : 1
+          }));
         }
       }, { passive: false });
     }
