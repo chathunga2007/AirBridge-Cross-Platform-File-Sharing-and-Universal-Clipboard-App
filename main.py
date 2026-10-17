@@ -214,6 +214,12 @@ def main():
     window.showMaximized()
     window._apply_windows_native_icon()
 
+    # If launched with file argument (e.g. from Windows Explorer 'Beam with AirBridge' context menu)
+    if len(sys.argv) > 1:
+        target_path = sys.argv[1]
+        if os.path.exists(target_path):
+            QtCore.QTimer.singleShot(600, lambda: window._handle_files_dropped([target_path]))
+
     logger.info("AirBridge GUI initialized and running.")
     exit_code = app.exec()
 
