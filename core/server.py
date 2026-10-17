@@ -55,6 +55,11 @@ from core.heic_converter import (
 )
 from core.clipboard_sync import clipboard_sync
 from core.screenshot import capture_primary_screen
+from core.remote_control import remote_control
+from core.shell_integration import is_shell_menu_installed, install_shell_menu, uninstall_shell_menu
+import zipfile
+import tempfile
+from urllib.parse import quote
 
 logger = logging.getLogger("AirBridge.Server")
 
@@ -385,6 +390,160 @@ async def download_shared_file(filename: str):
         media_type=mime_type or "application/octet-stream",
         headers=headers
     )
+
+
+# ---------------------------------------------------------
+# 1-Tap Batch ZIP Archiver (Download All Session Files)
+# ---------------------------------------------------------
+
+@app.get("/api/files/download-zip")
+async def download_all_files_zip():
+    """
+    1-Tap Batch ZIP Archiver:
+    Packs all files currently shared/received in AirBridge into a single compressed .zip file.
+    Streams directly to the client with low memory overhead.
+    """
+    files_to_pack = []
+    for item in settings.shared_files:
+        p = Path(item.filepath)
+        if p.exists() and p.is_file():
+            files_to_pack.append(p)
+
+    if not files_to_pack:
+        for p in DOWNLOADS_DIR.iterdir():
+            if p.is_file() and not p.name.startswith("."):
+                files_to_pack.append(p)
+
+    if not files_to_pack:
+        raise HTTPException(status_code=404, detail="No files available to package into ZIP")
+
+    temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    temp_zip_path = Path(temp_zip.name)
+    temp_zip.close()
+
+    try:
+        with zipfile.ZipFile(temp_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            added_names = set()
+            for file_path in files_to_pack:
+                arcname = file_path.name
+                counter = 1
+                while arcname in added_names:
+                    arcname = f"{file_path.stem}_{counter}{file_path.suffix}"
+                    counter += 1
+                added_names.add(arcname)
+                zf.write(file_path, arcname=arcname)
+
+        zip_size = temp_zip_path.stat().st_size
+
+        def iter_zip():
+            try:
+                with open(temp_zip_path, "rb") as f:
+                    while chunk := f.read(CHUNK_SIZE):
+                        yield chunk
+            finally:
+                try:
+                    if temp_zip_path.exists():
+                        temp_zip_path.unlink()
+                except Exception:
+                    pass
+
+        timestamp_str = time.strftime("%Y%m%d_%H%M%S")
+        zip_filename = f"AirBridge_Archive_{timestamp_str}.zip"
+        safe_ascii = zip_filename
+        encoded_fn = quote(zip_filename)
+
+        headers = {
+            "Content-Disposition": f'attachment; filename="{safe_ascii}"; filename*=UTF-8\'\'{encoded_fn}',
+            "Content-Length": str(zip_size),
+        }
+
+        return StreamingResponse(
+            iter_zip(),
+            media_type="application/zip",
+            headers=headers
+        )
+    except Exception as e:
+        if temp_zip_path.exists():
+            try:
+                temp_zip_path.unlink()
+            except Exception:
+                pass
+        logger.error(f"ZIP creation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate ZIP: {e}")
+
+
+# ---------------------------------------------------------
+# High-Speed LAN Throughput Benchmark (Speedometer)
+# ---------------------------------------------------------
+
+@app.get("/api/benchmark/download")
+async def benchmark_download(size_mb: int = 15):
+    """
+    LAN Throughput Benchmark Endpoint (Download Test).
+    Streams up to 30MB of fast zero-byte chunks to measure local Wi-Fi speeds.
+    """
+    clamped_mb = max(1, min(size_mb, 50))
+    total_bytes = clamped_mb * 1024 * 1024
+    chunk = b"\x00" * (1024 * 1024)  # 1MB chunk
+
+    def iter_benchmark():
+        sent = 0
+        while sent < total_bytes:
+            yield chunk
+            sent += len(chunk)
+
+    headers = {
+        "Content-Length": str(total_bytes),
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+    return StreamingResponse(iter_benchmark(), media_type="application/octet-stream", headers=headers)
+
+
+@app.post("/api/benchmark/upload")
+async def benchmark_upload(request: Request):
+    """
+    LAN Throughput Benchmark Endpoint (Upload Test).
+    Measures local Wi-Fi upload throughput from mobile to PC.
+    """
+    start_time = time.perf_counter()
+    total_bytes = 0
+    async for chunk in request.stream():
+        total_bytes += len(chunk)
+    elapsed = max(0.001, time.perf_counter() - start_time)
+    mbps = (total_bytes * 8) / (elapsed * 1_000_000)
+    mb_s = (total_bytes / (1024 * 1024)) / elapsed
+
+    return {
+        "status": "success",
+        "bytes_received": total_bytes,
+        "elapsed_sec": round(elapsed, 3),
+        "speed_mbps": round(mbps, 2),
+        "speed_mb_s": round(mb_s, 2),
+    }
+
+
+# ---------------------------------------------------------
+# Windows Explorer Shell Context Menu Integration
+# ---------------------------------------------------------
+
+@app.get("/api/shell/status")
+async def get_shell_status():
+    """Return whether 'Beam with AirBridge' Explorer context menu is active."""
+    return {"installed": is_shell_menu_installed()}
+
+
+@app.post("/api/shell/toggle")
+async def toggle_shell_status(request: Request):
+    """Enable or disable 'Beam with AirBridge' Explorer context menu."""
+    data = await request.json()
+    enable = bool(data.get("enable", True))
+    if enable:
+        success = install_shell_menu()
+    else:
+        success = uninstall_shell_menu()
+    return {"success": success, "installed": is_shell_menu_installed()}
 
 
 # ---------------------------------------------------------
@@ -737,6 +896,24 @@ async def websocket_endpoint(websocket: WebSocket):
                         })
                     except Exception as e:
                         logger.error(f"Failed to capture screenshot on WS request: {e}")
+
+                elif msg_type == "remote_mouse_move":
+                    dx = float(msg.get("dx", 0))
+                    dy = float(msg.get("dy", 0))
+                    sens = float(msg.get("sens", 1.6))
+                    remote_control.move_cursor(dx, dy, sens)
+
+                elif msg_type == "remote_mouse_click":
+                    button = msg.get("button", "left")
+                    remote_control.click(button)
+
+                elif msg_type == "remote_mouse_scroll":
+                    delta = int(msg.get("delta", 0))
+                    remote_control.scroll(delta)
+
+                elif msg_type == "remote_media_key":
+                    action = msg.get("action", "")
+                    remote_control.send_media_key(action)
 
             except Exception as e:
                 logger.debug(f"WS message parsing error: {e}")
