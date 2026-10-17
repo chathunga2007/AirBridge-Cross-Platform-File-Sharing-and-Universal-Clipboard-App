@@ -305,7 +305,7 @@ The resulting installer is saved as **`AirBridge-Setup-v1.0.0.exe`**.
 
 ## 💡 Developer Credits
 
-* **Architect & Lead Developer:** **[Chathunga](https://github.com/chathunga2007)**
+* **Architect & Lead Developer:** **[Chathunga Bimsara](https://github.com/chathunga2007)**
 * **GUI & System Integration:** Qt6 / PySide6, Win32 API, ctypes, pyperclip, mss, qrcode
 * **Server & Streaming Engine:** FastAPI, Uvicorn, WebSockets, pillow-heif, python-multipart
 * **Mobile Experience:** HTML5, Tailwind CSS, Lucide Icons, Web Audio API
