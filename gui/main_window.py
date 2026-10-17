@@ -32,6 +32,7 @@ from core.network import generate_qr_image, get_local_ip, get_all_lan_ips
 from core.clipboard_sync import clipboard_sync
 from core.screenshot import capture_primary_screen
 from core.websocket_manager import ws_manager
+from core.shell_integration import is_shell_menu_installed, install_shell_menu, uninstall_shell_menu
 import core.server as server_module
 
 
@@ -868,6 +869,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.clip_toggle.stateChanged.connect(self._on_clip_toggle_changed)
         set_layout.addWidget(self.clip_toggle)
 
+        self.shell_toggle = QtWidgets.QCheckBox("Explorer Right-Click ('Beam with AirBridge')")
+        self.shell_toggle.setChecked(is_shell_menu_installed())
+        self.shell_toggle.stateChanged.connect(self._on_shell_toggle_changed)
+        set_layout.addWidget(self.shell_toggle)
+
         left_col.addWidget(settings_card)
 
         # 4. Action Buttons Grid
@@ -982,6 +988,26 @@ class MainWindow(QtWidgets.QMainWindow):
         feed_header.addWidget(feed_title)
 
         feed_header.addStretch()
+
+        zip_btn = QtWidgets.QPushButton("📦 Pack All to ZIP")
+        zip_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        zip_btn.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(99, 102, 241, 0.2);
+                color: #a5b4fc;
+                border: 1px solid rgba(99, 102, 241, 0.4);
+                border-radius: 6px;
+                padding: 3px 10px;
+                font-size: 11px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background-color: #4f46e5;
+                color: #ffffff;
+            }
+        """)
+        zip_btn.clicked.connect(self._export_all_zip)
+        feed_header.addWidget(zip_btn)
 
         clear_btn = QtWidgets.QPushButton("Clear")
         clear_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
@@ -1346,6 +1372,58 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if copied_items:
             self.status_lbl.setText(f"🚀 Beamed {len(copied_items)} file(s) to connected phones!")
+
+    def _export_all_zip(self):
+        """Package all shared files into a single ZIP archive in Downloads."""
+        import zipfile
+        files_to_pack = []
+        for item in settings.shared_files:
+            p = Path(item.filepath)
+            if p.exists() and p.is_file():
+                files_to_pack.append(p)
+        if not files_to_pack:
+            for p in DOWNLOADS_DIR.iterdir():
+                if p.is_file() and not p.name.startswith("."):
+                    files_to_pack.append(p)
+
+        if not files_to_pack:
+            self.status_lbl.setText("⚠️ No files to package into ZIP.")
+            return
+
+        timestamp_str = time.strftime("%Y%m%d_%H%M%S")
+        target_zip = DOWNLOADS_DIR / f"AirBridge_Archive_{timestamp_str}.zip"
+        try:
+            with zipfile.ZipFile(target_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+                added = set()
+                for fp in files_to_pack:
+                    aname = fp.name
+                    counter = 1
+                    while aname in added:
+                        aname = f"{fp.stem}_{counter}{fp.suffix}"
+                        counter += 1
+                    added.add(aname)
+                    zf.write(fp, arcname=aname)
+
+            self.status_lbl.setText(f"📦 Created ZIP: {target_zip.name}")
+            self.tray.show_toast("ZIP Archive Created", f"Saved {target_zip.name} to Downloads")
+            subprocess.Popen(f'explorer /select,"{str(target_zip)}"', shell=True)
+        except Exception as e:
+            logger.error(f"Failed to create ZIP: {e}")
+            self.status_lbl.setText(f"❌ ZIP creation error: {e}")
+
+    def _on_shell_toggle_changed(self, state):
+        enabled = (state == QtCore.Qt.CheckState.Checked.value or state == 2)
+        if enabled:
+            ok = install_shell_menu()
+            if ok:
+                self.status_lbl.setText("⚡ Added 'Beam with AirBridge' to Windows Explorer right-click menu!")
+                self.tray.show_toast("Windows Integration", "'Beam with AirBridge' registered in Explorer")
+            else:
+                self.status_lbl.setText("❌ Failed to update Explorer registry")
+        else:
+            ok = uninstall_shell_menu()
+            if ok:
+                self.status_lbl.setText("Removed 'Beam with AirBridge' from Windows Explorer menu.")
 
     def _beam_screenshot(self):
         """Trigger instant screen capture and notify phone."""
