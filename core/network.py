@@ -32,6 +32,17 @@ VIRTUAL_ADAPTER_KEYWORDS = [
     "tap",
     "tun",
     "hyper-v",
+    "tailscale",
+    "zerotier",
+    "wireguard",
+    "clash",
+    "sing-box",
+    "fortinet",
+    "cisco",
+    "openvpn",
+    "hamachi",
+    "radmin",
+    "host-only",
 ]
 
 
