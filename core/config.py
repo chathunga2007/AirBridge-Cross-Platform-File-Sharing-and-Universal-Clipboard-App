@@ -9,7 +9,7 @@ import sys
 import secrets
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 # Base Application Info
 APP_NAME = "AirBridge"
@@ -19,16 +19,25 @@ CREATOR = "Chathunga"
 APP_USER_MODEL_ID = "chathunga.airbridge.hub.v2"
 
 # Directories
-BASE_DIR = Path(__file__).resolve().parent.parent
+if getattr(sys, "frozen", False):
+    BASE_DIR = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    APP_DIR = Path(sys.executable).parent
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    APP_DIR = BASE_DIR
+
 ASSETS_DIR = BASE_DIR / "assets"
 MOBILE_UI_DIR = BASE_DIR / "mobile_ui"
 DOWNLOADS_DIR = Path.home() / "Downloads" / "AirBridge"
-CACHE_DIR = BASE_DIR / ".cache"
+CACHE_DIR = Path.home() / ".airbridge" / "cache"
 
 # Ensure runtime directories exist
 DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
-ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
 
 # Default Server Settings
 HOST = "0.0.0.0"
