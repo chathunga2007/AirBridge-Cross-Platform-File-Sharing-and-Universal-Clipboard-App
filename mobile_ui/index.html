@@ -119,6 +119,11 @@
 
       <!-- Live Connection & Hub Button -->
       <div class="flex items-center space-x-2">
+        <button onclick="openSpeedtestModal()" title="LAN Wi-Fi Speed Test" class="p-1.5 rounded-lg glass-panel hover:text-cyan-400 text-slate-300 transition text-xs flex items-center gap-1 px-2.5 border border-cyan-500/20 active:scale-95">
+          <i data-lucide="gauge" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span class="text-[10px] font-bold">Speed</span>
+        </button>
+
         <button id="soundToggleBtn" onclick="toggleSound()" class="p-1.5 rounded-lg glass-panel hover:text-cyan-400 text-slate-400 transition text-xs">
           <i id="soundIcon" data-lucide="volume-2" class="w-4 h-4"></i>
         </button>
@@ -163,28 +168,38 @@
           </span>
         </div>
 
-        <!-- Hidden File Inputs -->
+        <!-- Hidden File & Camera Inputs -->
         <input type="file" id="photoInput" multiple accept="image/*,video/*" class="hidden">
         <input type="file" id="fileInput" multiple accept="*/*" class="hidden">
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
 
         <!-- Action Buttons -->
-        <div class="grid grid-cols-2 gap-3 mb-3">
+        <div class="grid grid-cols-3 gap-2 mb-3">
           <button onclick="document.getElementById('photoInput').click()" 
-                  class="flex flex-col items-center justify-center p-3.5 rounded-xl bg-gradient-to-b from-slate-800/90 to-slate-900 border border-slate-700/80 hover:border-cyan-500/50 active:scale-95 transition">
-            <div class="w-10 h-10 rounded-xl bg-cyan-500/15 flex items-center justify-center mb-2 text-cyan-400">
-              <i data-lucide="image" class="w-5 h-5"></i>
+                  class="flex flex-col items-center justify-center p-2.5 rounded-xl bg-gradient-to-b from-slate-800/90 to-slate-900 border border-slate-700/80 hover:border-cyan-500/50 active:scale-95 transition">
+            <div class="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center mb-1 text-cyan-400">
+              <i data-lucide="image" class="w-4 h-4"></i>
             </div>
-            <span class="text-xs font-bold text-white">Photos & 4K Videos</span>
-            <span class="text-[10px] text-slate-400">Camera Roll</span>
+            <span class="text-[11px] font-bold text-white">Photos & 4K</span>
+            <span class="text-[9px] text-slate-400">Gallery</span>
           </button>
 
           <button onclick="document.getElementById('fileInput').click()" 
-                  class="flex flex-col items-center justify-center p-3.5 rounded-xl bg-gradient-to-b from-slate-800/90 to-slate-900 border border-slate-700/80 hover:border-indigo-500/50 active:scale-95 transition">
-            <div class="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center mb-2 text-indigo-400">
-              <i data-lucide="file-up" class="w-5 h-5"></i>
+                  class="flex flex-col items-center justify-center p-2.5 rounded-xl bg-gradient-to-b from-slate-800/90 to-slate-900 border border-slate-700/80 hover:border-indigo-500/50 active:scale-95 transition">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center mb-1 text-indigo-400">
+              <i data-lucide="file-up" class="w-4 h-4"></i>
             </div>
-            <span class="text-xs font-bold text-white">Large Files / 10GB+</span>
-            <span class="text-[10px] text-slate-400">Browse Files</span>
+            <span class="text-[11px] font-bold text-white">10GB+ Files</span>
+            <span class="text-[9px] text-slate-400">Browse</span>
+          </button>
+
+          <button onclick="document.getElementById('cameraInput').click()" 
+                  class="flex flex-col items-center justify-center p-2.5 rounded-xl bg-gradient-to-b from-slate-800/90 to-slate-900 border border-emerald-500/40 hover:border-emerald-400 active:scale-95 transition">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-1 text-emerald-400">
+              <i data-lucide="camera" class="w-4 h-4"></i>
+            </div>
+            <span class="text-[11px] font-bold text-white">Camera Snap</span>
+            <span class="text-[9px] text-emerald-400">Instant Beam</span>
           </button>
         </div>
 
@@ -223,9 +238,16 @@
             <i data-lucide="inbox" class="w-4 h-4 text-cyan-400"></i>
             Files Shared from Windows PC
           </h3>
-          <button onclick="fetchSharedFiles()" class="text-xs text-cyan-400 hover:text-cyan-300 p-1">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-          </button>
+          <div class="flex items-center space-x-2">
+            <a href="/api/files/download-zip" target="_blank" download="AirBridge_Files.zip" 
+               class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-300 text-[10px] font-bold active:scale-95 transition">
+              <i data-lucide="archive" class="w-3.5 h-3.5"></i>
+              <span>All (.ZIP)</span>
+            </a>
+            <button onclick="fetchSharedFiles()" class="text-xs text-cyan-400 hover:text-cyan-300 p-1">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
         </div>
 
         <div id="receivedFilesList" class="space-y-2 max-h-72 overflow-y-auto pr-1">
@@ -477,8 +499,119 @@
               No media in queue. Tap "Browse PC Media" above to pick any video on your PC!
             </div>
           </div>
+    <!-- TAB 6: REMOTE (WIRELESS PC TRACKPAD & PRESENTATION REMOTE) -->
+    <section id="tab-remote" class="tab-content space-y-4">
+      
+      <!-- REMOTE TRACKPAD CARD -->
+      <div class="glass-panel-elevated rounded-2xl p-4 border border-cyan-500/30 shadow-2xl space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+              <i data-lucide="mouse-pointer-2" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h2 class="text-sm font-extrabold text-white">Wireless PC Trackpad</h2>
+              <p class="text-[11px] text-slate-400">Zero-latency cursor, click & scroll control</p>
+            </div>
+          </div>
+          <!-- Sensitivity Selector -->
+          <div class="flex items-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-800 text-[10px]">
+            <span class="text-slate-400 px-1">Sens:</span>
+            <button onclick="setSensitivity(1.0)" id="sens-1" class="px-1.5 py-0.5 rounded text-slate-400">1x</button>
+            <button onclick="setSensitivity(1.6)" id="sens-2" class="px-1.5 py-0.5 rounded bg-cyan-600 text-white font-bold">1.6x</button>
+            <button onclick="setSensitivity(2.4)" id="sens-3" class="px-1.5 py-0.5 rounded text-slate-400">2.4x</button>
+          </div>
         </div>
 
+        <!-- VIRTUAL TOUCH TRACKPAD SURFACE -->
+        <div id="touchTrackpad" 
+             class="relative w-full h-64 rounded-xl bg-gradient-to-b from-slate-900/90 to-slate-950/95 border-2 border-dashed border-cyan-500/30 flex flex-col items-center justify-center select-none touch-none overflow-hidden cursor-crosshair shadow-inner">
+          <div class="pointer-events-none absolute inset-0 opacity-15 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:16px_16px]"></div>
+          <div class="pointer-events-none flex flex-col items-center text-slate-500 space-y-1">
+            <i data-lucide="touchpad" class="w-10 h-10 opacity-30 text-cyan-400"></i>
+            <span class="text-xs font-semibold text-slate-400">Drag to Move PC Cursor</span>
+            <span class="text-[10px] text-slate-500">1-Finger Tap: Left Click • 2-Finger Swipe: Scroll</span>
+          </div>
+        </div>
+
+        <!-- MOUSE BUTTONS -->
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          <button onclick="sendMouseClick('left')" class="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 transition text-xs font-bold text-slate-200 border border-slate-700 flex items-center justify-center gap-2">
+            <i data-lucide="mouse-pointer" class="w-4 h-4 text-cyan-400"></i>
+            <span>Left Click</span>
+          </button>
+          <button onclick="sendMouseClick('right')" class="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 transition text-xs font-bold text-slate-200 border border-slate-700 flex items-center justify-center gap-2">
+            <i data-lucide="mouse" class="w-4 h-4 text-indigo-400"></i>
+            <span>Right Click</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- PRESENTATION REMOTE CARD -->
+      <div class="glass-panel rounded-2xl p-4 border border-slate-800 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="presentation" class="w-3.5 h-3.5 text-amber-400"></i>
+            Presentation Remote (PowerPoint / PDF)
+          </h3>
+        </div>
+        <div class="grid grid-cols-4 gap-2">
+          <button onclick="sendMediaKey('prev_slide')" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 active:scale-95 transition flex flex-col items-center justify-center text-slate-300">
+            <i data-lucide="chevron-left" class="w-5 h-5 text-amber-400 mb-1"></i>
+            <span class="text-[10px] font-bold">Prev Slide</span>
+          </button>
+          <button onclick="sendMediaKey('next_slide')" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 active:scale-95 transition flex flex-col items-center justify-center text-slate-300">
+            <i data-lucide="chevron-right" class="w-5 h-5 text-amber-400 mb-1"></i>
+            <span class="text-[10px] font-bold">Next Slide</span>
+          </button>
+          <button onclick="sendMediaKey('space')" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 active:scale-95 transition flex flex-col items-center justify-center text-slate-300">
+            <i data-lucide="play" class="w-5 h-5 text-emerald-400 mb-1"></i>
+            <span class="text-[10px] font-bold">Advance</span>
+          </button>
+          <button onclick="sendMediaKey('escape')" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 active:scale-95 transition flex flex-col items-center justify-center text-slate-300">
+            <i data-lucide="x" class="w-5 h-5 text-rose-400 mb-1"></i>
+            <span class="text-[10px] font-bold">Exit / Esc</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- MULTIMEDIA & QUICK WINDOWS ACTIONS -->
+      <div class="glass-panel rounded-2xl p-4 border border-slate-800 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="sliders" class="w-3.5 h-3.5 text-cyan-400"></i>
+            Media & Windows Shortcuts
+          </h3>
+        </div>
+        <div class="grid grid-cols-4 gap-2">
+          <button onclick="sendMediaKey('vol_down')" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 active:scale-95 transition flex flex-col items-center justify-center text-slate-300">
+            <i data-lucide="volume-1" class="w-4 h-4 text-sky-400 mb-1"></i>
+            <span class="text-[10px] font-bold">Vol Down</span>
+          </button>
+          <button onclick="sendMediaKey('vol_up')" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 active:scale-95 transition flex flex-col items-center justify-center text-slate-300">
+            <i data-lucide="volume-2" class="w-4 h-4 text-sky-400 mb-1"></i>
+            <span class="text-[10px] font-bold">Vol Up</span>
+          </button>
+          <button onclick="sendMediaKey('mute')" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 active:scale-95 transition flex flex-col items-center justify-center text-slate-300">
+            <i data-lucide="volume-x" class="w-4 h-4 text-amber-400 mb-1"></i>
+            <span class="text-[10px] font-bold">Mute</span>
+          </button>
+          <button onclick="sendMediaKey('play_pause')" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 active:scale-95 transition flex flex-col items-center justify-center text-slate-300">
+            <i data-lucide="play-pause" class="w-4 h-4 text-emerald-400 mb-1"></i>
+            <span class="text-[10px] font-bold">Play/Pause</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
+          <button onclick="sendMediaKey('show_desktop')" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700 active:scale-95 transition flex items-center justify-center gap-2 text-slate-200">
+            <i data-lucide="layout-grid" class="w-4 h-4 text-purple-400"></i>
+            <span class="text-xs font-bold">Show Desktop</span>
+          </button>
+          <button onclick="sendMediaKey('lock_pc')" class="p-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 border border-rose-800/40 active:scale-95 transition flex items-center justify-center gap-2 text-rose-300">
+            <i data-lucide="lock" class="w-4 h-4 text-rose-400"></i>
+            <span class="text-xs font-bold">Lock Windows PC</span>
+          </button>
+        </div>
       </div>
     </section>
 
@@ -489,14 +622,14 @@
         <span>•</span>
         <span>Architected by <strong class="text-slate-300">Chathunga</strong></span>
       </div>
-      <p class="text-[10px] text-slate-600">Cross-Device AirDrop & Clipboard Engine</p>
+      <p class="text-[10px] text-slate-600">Cross-Device AirDrop & Universal Clipboard Hub</p>
     </footer>
 
   </main>
 
   <!-- BOTTOM NAVIGATION BAR (iOS TAB BAR STYLE) -->
   <nav class="fixed bottom-0 left-0 right-0 z-40 glass-panel border-t border-slate-800/80 px-2 py-2">
-    <div class="max-w-md mx-auto grid grid-cols-5 gap-1">
+    <div class="max-w-md mx-auto grid grid-cols-6 gap-1">
       
       <button onclick="switchTab('transfer')" id="nav-transfer" 
               class="nav-tab active flex flex-col items-center justify-center py-1 rounded-xl text-cyan-400 transition">
@@ -508,6 +641,12 @@
               class="nav-tab flex flex-col items-center justify-center py-1 rounded-xl text-slate-400 hover:text-slate-200 transition">
         <i data-lucide="clipboard-copy" class="w-5 h-5 mb-0.5"></i>
         <span class="text-[9px] font-semibold">Clipboard</span>
+      </button>
+
+      <button onclick="switchTab('remote')" id="nav-remote" 
+              class="nav-tab flex flex-col items-center justify-center py-1 rounded-xl text-slate-400 hover:text-slate-200 transition">
+        <i data-lucide="mouse-pointer-2" class="w-5 h-5 mb-0.5"></i>
+        <span class="text-[9px] font-semibold">Remote</span>
       </button>
 
       <button onclick="switchTab('notes')" id="nav-notes" 
@@ -572,6 +711,57 @@
           <!-- Populated dynamically -->
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- SPEEDTEST & LAN BENCHMARK MODAL -->
+  <div id="speedtestModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
+    <div class="glass-panel-elevated w-full max-w-sm rounded-2xl p-5 space-y-4 border border-cyan-500/30 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <i data-lucide="gauge" class="w-4 h-4 text-cyan-400"></i>
+          LAN Wi-Fi Speedometer
+        </h3>
+        <button onclick="closeSpeedtestModal()" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Live Speed HUD -->
+      <div class="text-center py-3 bg-slate-900/40 rounded-xl border border-slate-800/80">
+        <div class="inline-flex items-baseline justify-center gap-1">
+          <span id="speedtestLiveVal" class="text-4xl font-extrabold font-mono text-cyan-400">0.0</span>
+          <span id="speedtestUnit" class="text-sm font-bold text-slate-400">MB/s</span>
+        </div>
+        <p id="speedtestMbps" class="text-xs font-mono text-emerald-400 font-bold mt-1">0.0 Mbps</p>
+        <p id="speedtestPhase" class="text-xs text-slate-400 mt-2">Ready to benchmark local Wi-Fi throughput</p>
+      </div>
+
+      <!-- Benchmark Metrics Cards -->
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="glass-panel p-2.5 rounded-xl border border-slate-800 space-y-0.5">
+          <span class="text-[10px] text-slate-400 flex items-center gap-1">
+            <i data-lucide="download" class="w-3 h-3 text-cyan-400"></i> Download
+          </span>
+          <p id="benchDownloadSpeed" class="text-sm font-bold font-mono text-white">-- MB/s</p>
+        </div>
+        <div class="glass-panel p-2.5 rounded-xl border border-slate-800 space-y-0.5">
+          <span class="text-[10px] text-slate-400 flex items-center gap-1">
+            <i data-lucide="upload" class="w-3 h-3 text-indigo-400"></i> Upload
+          </span>
+          <p id="benchUploadSpeed" class="text-sm font-bold font-mono text-white">-- MB/s</p>
+        </div>
+      </div>
+
+      <!-- Rating Pill -->
+      <div id="speedRatingBadge" class="hidden p-2 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs text-center font-bold">
+        🚀 Gigabit Line Rate LAN Verified
+      </div>
+
+      <button id="runSpeedtestBtn" onclick="runSpeedtest()" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/30 active:scale-95 transition flex items-center justify-center gap-2">
+        <i data-lucide="play" class="w-4 h-4"></i>
+        <span>Start LAN Speed Benchmark</span>
+      </button>
     </div>
   </div>
 
@@ -670,6 +860,7 @@
       if (tabId === 'clipboard') fetchClipboard();
       if (tabId === 'stream') fetchStreamQueue();
       if (tabId === 'transfer') fetchSharedFiles();
+      if (tabId === 'remote') initTrackpad();
     }
 
     // Toast Alert
@@ -801,6 +992,7 @@
     // -------------------------------------------------------------
     const photoInput = document.getElementById('photoInput');
     const fileInput = document.getElementById('fileInput');
+    const cameraInput = document.getElementById('cameraInput');
 
     function handleFileSelection(files) {
       if (!files || files.length === 0) return;
@@ -825,6 +1017,12 @@
 
     photoInput.addEventListener('change', (e) => handleFileSelection(e.target.files));
     fileInput.addEventListener('change', (e) => handleFileSelection(e.target.files));
+    if (cameraInput) {
+      cameraInput.addEventListener('change', (e) => {
+        handleFileSelection(e.target.files);
+        setTimeout(() => executeUpload(), 120);
+      });
+    }
 
     function executeUpload() {
       if (!selectedFiles || selectedFiles.length === 0) return;
@@ -1410,9 +1608,205 @@
       );
     }
 
+    // -------------------------------------------------------------
+    // REMOTE CONTROL & TRACKPAD ENGINE
+    // -------------------------------------------------------------
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+    let touchStartTime = 0;
+    let touchMoved = false;
+    let sensitivity = 1.6;
+    let trackpadInitialized = false;
+
+    function setSensitivity(val) {
+      sensitivity = val;
+      [1.0, 1.6, 2.4].forEach(s => {
+        const el = document.getElementById(`sens-${s === 1.0 ? 1 : s === 1.6 ? 2 : 3}`);
+        if (el) {
+          if (s === val) {
+            el.className = "px-1.5 py-0.5 rounded bg-cyan-600 text-white font-bold";
+          } else {
+            el.className = "px-1.5 py-0.5 rounded text-slate-400";
+          }
+        }
+      });
+    }
+
+    function initTrackpad() {
+      const pad = document.getElementById('touchTrackpad');
+      if (!pad || trackpadInitialized) return;
+      trackpadInitialized = true;
+
+      pad.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (e.touches.length === 1) {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+          lastTouchX = touchStartX;
+          lastTouchY = touchStartY;
+          touchStartTime = performance.now();
+          touchMoved = false;
+        } else if (e.touches.length === 2) {
+          lastTouchY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        }
+      }, { passive: false });
+
+      pad.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (e.touches.length === 1) {
+          const curX = e.touches[0].clientX;
+          const curY = e.touches[0].clientY;
+          const dx = curX - lastTouchX;
+          const dy = curY - lastTouchY;
+          lastTouchX = curX;
+          lastTouchY = curY;
+
+          if (Math.abs(curX - touchStartX) > 4 || Math.abs(curY - touchStartY) > 4) {
+            touchMoved = true;
+          }
+
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+              type: 'remote_mouse_move',
+              dx: dx,
+              dy: dy,
+              sens: sensitivity
+            }));
+          }
+        } else if (e.touches.length === 2) {
+          const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          const deltaY = midY - lastTouchY;
+          lastTouchY = midY;
+          touchMoved = true;
+
+          if (Math.abs(deltaY) > 2 && socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+              type: 'remote_mouse_scroll',
+              delta: deltaY > 0 ? 1 : -1
+            }));
+          }
+        }
+      }, { passive: false });
+
+      pad.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        const elapsed = performance.now() - touchStartTime;
+        if (!touchMoved && elapsed < 280) {
+          sendMouseClick('left');
+        }
+      }, { passive: false });
+    }
+
+    function sendMouseClick(button) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'remote_mouse_click',
+          button: button
+        }));
+      }
+      if (navigator.vibrate) navigator.vibrate(15);
+      playChime('note');
+    }
+
+    function sendMediaKey(action) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: 'remote_media_key',
+          action: action
+        }));
+      }
+      if (navigator.vibrate) navigator.vibrate(20);
+      playChime('note');
+      showToast(`Sent: ${action.replace('_', ' ').toUpperCase()}`, 'info');
+    }
+
+    // -------------------------------------------------------------
+    // LAN WI-FI SPEEDOMETER / BENCHMARK ENGINE
+    // -------------------------------------------------------------
+    function openSpeedtestModal() {
+      document.getElementById('speedtestModal').classList.remove('hidden');
+    }
+
+    function closeSpeedtestModal() {
+      document.getElementById('speedtestModal').classList.add('hidden');
+    }
+
+    async function runSpeedtest() {
+      const btn = document.getElementById('runSpeedtestBtn');
+      const liveVal = document.getElementById('speedtestLiveVal');
+      const liveMbps = document.getElementById('speedtestMbps');
+      const phase = document.getElementById('speedtestPhase');
+      const downEl = document.getElementById('benchDownloadSpeed');
+      const upEl = document.getElementById('benchUploadSpeed');
+      const rating = document.getElementById('speedRatingBadge');
+
+      btn.disabled = true;
+      btn.classList.add('opacity-50');
+      rating.classList.add('hidden');
+
+      try {
+        // 1. Download Test (15MB)
+        phase.innerText = '⚡ Testing LAN Download Throughput...';
+        const downStart = performance.now();
+        const res = await fetch('/api/benchmark/download?size_mb=15');
+        const reader = res.body.getReader();
+        let receivedBytes = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          receivedBytes += value.length;
+          const curElapsed = (performance.now() - downStart) / 1000;
+          if (curElapsed > 0.05) {
+            const curMBs = (receivedBytes / (1024 * 1024)) / curElapsed;
+            liveVal.innerText = curMBs.toFixed(1);
+            liveMbps.innerText = `${(curMBs * 8).toFixed(1)} Mbps`;
+          }
+        }
+        const downElapsed = (performance.now() - downStart) / 1000;
+        const finalDownMBs = (receivedBytes / (1024 * 1024)) / downElapsed;
+        downEl.innerText = `${finalDownMBs.toFixed(1)} MB/s`;
+
+        // 2. Upload Test (6MB buffer)
+        phase.innerText = '⚡ Testing LAN Upload Throughput...';
+        const uploadPayload = new Uint8Array(6 * 1024 * 1024);
+        const upRes = await fetch('/api/benchmark/upload', {
+          method: 'POST',
+          body: uploadPayload
+        });
+        const upData = await upRes.json();
+        const upMBs = upData.speed_mb_s || 0;
+        upEl.innerText = `${upMBs.toFixed(1)} MB/s`;
+
+        liveVal.innerText = finalDownMBs.toFixed(1);
+        liveMbps.innerText = `${(finalDownMBs * 8).toFixed(1)} Mbps (LAN)`;
+        phase.innerText = '✅ LAN Benchmark Complete!';
+
+        rating.classList.remove('hidden');
+        if (finalDownMBs > 50) {
+          rating.innerText = '🚀 Gigabit Line Rate Wi-Fi • 0 MB Mobile Data Consumed';
+        } else if (finalDownMBs > 20) {
+          rating.innerText = '⚡ Ultra High-Speed Local Wi-Fi (Turbo LAN)';
+        } else {
+          rating.innerText = '📶 Standard Local Wi-Fi Connection';
+        }
+        playChime('upload');
+
+      } catch (e) {
+        console.error("Speedtest error:", e);
+        phase.innerText = 'Benchmark error: Check connection';
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50');
+      }
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       initWebSocket();
       fetchSharedFiles();
+      initTrackpad();
     });
   </script>
 </body>
