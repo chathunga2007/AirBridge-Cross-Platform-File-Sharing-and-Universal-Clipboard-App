@@ -34,6 +34,10 @@ class ConnectionManager:
         """Return clean list of all connected device objects."""
         return list(self.client_metadata.values())
 
+    def get_connected_devices_count(self) -> int:
+        """Return total active connections count."""
+        return len(self.active_connections)
+
     async def connect(self, websocket: WebSocket, client_info: Optional[Dict[str, Any]] = None):
         """Accept WebSocket connection, register client and broadcast updated fleet list."""
         await websocket.accept()
@@ -144,10 +148,21 @@ class ConnectionManager:
         })
 
     def notify_stream_queue(self, queue_items: list):
-        """Broadcast updated video/audio stream queue."""
+        """Broadcast updated video/audio stream queue safely as JSON-serializable dicts."""
+        from dataclasses import asdict, is_dataclass
+        clean_items = []
+        for item in queue_items:
+            if is_dataclass(item):
+                clean_items.append(asdict(item))
+            elif isinstance(item, dict):
+                clean_items.append(item)
+            elif hasattr(item, "__dict__"):
+                clean_items.append(item.__dict__)
+            else:
+                clean_items.append(str(item))
         self.broadcast_threadsafe({
             "type": "stream_queue_updated",
-            "queue": queue_items,
+            "queue": clean_items,
         })
 
     def notify_quick_note(self, text: str, sender: str = "PC"):
