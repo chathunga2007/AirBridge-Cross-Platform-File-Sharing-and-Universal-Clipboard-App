@@ -144,20 +144,46 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount Assets directory
-app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+# Ensure Assets directory exists before mounting
+try:
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
+
+app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR), check_dir=False), name="assets")
 
 
 # ---------------------------------------------------------
 # Static & PWA Manifest Routes
 # ---------------------------------------------------------
 
+def _find_mobile_index() -> Optional[Path]:
+    candidates = [
+        MOBILE_UI_DIR / "index.html",
+        Path(__file__).resolve().parent.parent / "mobile_ui" / "index.html",
+        Path.cwd() / "mobile_ui" / "index.html",
+    ]
+    import sys
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        candidates.insert(0, exe_dir / "_internal" / "mobile_ui" / "index.html")
+        candidates.insert(1, exe_dir / "mobile_ui" / "index.html")
+    for c in candidates:
+        if c.exists():
+            return c
+    return None
+
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_mobile_pwa(request: Request):
     """Serve the sleek iOS/Android PWA client."""
-    index_file = MOBILE_UI_DIR / "index.html"
-    if not index_file.exists():
-        return HTMLResponse("<h2>AirBridge Mobile UI is loading...</h2>")
+    index_file = _find_mobile_index()
+    if not index_file or not index_file.exists():
+        return HTMLResponse(
+            "<!DOCTYPE html><html><body style='background:#070b14;color:#f8fafc;font-family:sans-serif;text-align:center;padding:50px;'>"
+            "<h2>AirBridge Mobile UI is loading...</h2>"
+            "<p>Please refresh in a moment.</p></body></html>"
+        )
     with open(index_file, "r", encoding="utf-8") as f:
         content = f.read()
     return HTMLResponse(content)
