@@ -12,27 +12,50 @@ import threading
 import logging
 from pathlib import Path
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] (%(name)s) %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-    ]
-)
-logger = logging.getLogger("AirBridge.Main")
+import io
+
+# In Windows GUI / PyInstaller / pythonw windowed mode, sys.stdout and sys.stderr can be None.
+# Provide dummy streams so libraries calling .isatty() or .write() never fail.
+if sys.stdout is None:
+    try:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")
+    except Exception:
+        sys.stdout = io.StringIO()
+if sys.stderr is None:
+    try:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")
+    except Exception:
+        sys.stderr = io.StringIO()
 
 # 1. Set Windows AppUserModelID for Windows 11 Taskbar Icon & Toast Integration
 try:
     if sys.platform == "win32":
         myappid = "chathunga.airbridge.hub.v2"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-        logger.info(f"Windows AppUserModelID set to '{myappid}'")
-except Exception as e:
-    logger.debug(f"Could not set AppUserModelID: {e}")
+except Exception:
+    pass
 
 # 2. Ensure Assets & Icons Exist (Graceful Fallback Generator)
-from core.config import ASSETS_DIR, APP_USER_MODEL_ID, HOST, DEFAULT_PORT
+from core.config import ASSETS_DIR, APP_USER_MODEL_ID, HOST, DEFAULT_PORT, CACHE_DIR, settings
+
+# Setup file & console logging
+_log_handlers = []
+if sys.stdout is not None:
+    _log_handlers.append(logging.StreamHandler(sys.stdout))
+
+try:
+    _log_file = CACHE_DIR / "airbridge.log"
+    _log_handlers.append(logging.FileHandler(str(_log_file), encoding="utf-8"))
+except Exception:
+    pass
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] (%(name)s) %(message)s",
+    handlers=_log_handlers,
+    force=True
+)
+logger = logging.getLogger("AirBridge.Main")
 
 
 def ensure_icons():
@@ -165,29 +188,45 @@ def ensure_shortcuts():
 
 
 ensure_shortcuts()
+
+
 class ServerThread(threading.Thread):
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int, on_ready=None, on_error=None):
         super().__init__(name="AirBridge-ServerThread", daemon=True)
         self.host = host
         self.port = port
+        self.on_ready = on_ready
+        self.on_error = on_error
         self.server = None
+        self.is_running = False
+        self.error_msg = None
 
     def run(self):
-        import uvicorn
-        from core.server import app
+        try:
+            import uvicorn
+            from core.server import app
 
-        config = uvicorn.Config(
-            app=app,
-            host=self.host,
-            port=self.port,
-            log_level="warning",
-            access_log=False,
-            workers=1,
-            loop="asyncio"
-        )
-        self.server = uvicorn.Server(config)
-        logger.info(f"Starting AirBridge API Server on {self.host}:{self.port}...")
-        self.server.run()
+            config = uvicorn.Config(
+                app=app,
+                host=self.host,
+                port=self.port,
+                log_config=None,
+                access_log=False,
+                workers=1,
+                loop="asyncio"
+            )
+            self.server = uvicorn.Server(config)
+            logger.info(f"Starting AirBridge API Server on {self.host}:{self.port}...")
+            self.is_running = True
+            if self.on_ready:
+                self.on_ready()
+            self.server.run()
+        except Exception as e:
+            logger.exception(f"AirBridge Server fatal error on {self.host}:{self.port}: {e}")
+            self.error_msg = str(e)
+            self.is_running = False
+            if self.on_error:
+                self.on_error(str(e))
 
     def stop(self):
         if self.server:
@@ -195,8 +234,9 @@ class ServerThread(threading.Thread):
 
 
 def main():
-    # Start FastAPI backend in background thread
-    server_thread = ServerThread(host=HOST, port=DEFAULT_PORT)
+    # Use dynamic port from settings (already checked for availability)
+    active_port = getattr(settings, "port", DEFAULT_PORT)
+    server_thread = ServerThread(host=HOST, port=active_port)
     server_thread.start()
 
     # Small pause to allow server initialization
@@ -218,7 +258,7 @@ def main():
     elif png_path.exists():
         app.setWindowIcon(QtGui.QIcon(str(png_path.resolve())))
 
-    window = MainWindow()
+    window = MainWindow(server_thread=server_thread)
     window.showMaximized()
     window._apply_windows_native_icon()
 
