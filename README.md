@@ -7,7 +7,7 @@
   **Seamless Peer-to-Peer Bridge between Windows 11, Apple iOS & Android**
 
   <p align="center">
-    <a href="https://github.com/chathunga2007/AirBridge-Cross-Platform-File-Sharing-and-Universal-Clipboard--Windows-iOS-Android-/releases"><img src="https://img.shields.io/badge/Release-v1.0.0-0284c7?style=for-the-badge&logo=windows11&logoColor=white" alt="Release v1.0.0"></a>
+    <a href="https://github.com/chathunga2007/AirBridge-Cross-Platform-File-Sharing-and-Universal-Clipboard--Windows-iOS-Android-/releases"><img src="https://img.shields.io/badge/Release-v1.1.0-0284c7?style=for-the-badge&logo=windows11&logoColor=white" alt="Release v1.1.0"></a>
     <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20iOS%20%7C%20Android-38bdf8?style=for-the-badge" alt="Platforms">
     <img src="https://img.shields.io/badge/Python-3.11+-3b82f6?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+">
     <img src="https://img.shields.io/badge/GUI-PySide6%20%2F%20Qt6-8b5cf6?style=for-the-badge&logo=qt&logoColor=white" alt="PySide6 Qt6">
