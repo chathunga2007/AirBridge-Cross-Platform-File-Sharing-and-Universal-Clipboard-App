@@ -14,30 +14,78 @@ from typing import List, Dict, Optional, Any
 # Base Application Info
 APP_NAME = "AirBridge"
 APP_SUBTITLE = "Local AirDrop & Universal Clipboard Hub"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 CREATOR = "Chathunga"
 APP_USER_MODEL_ID = "chathunga.airbridge.hub.v2"
 
 # Directories
+def find_resource_dir(name: str) -> Path:
+    """
+    Safely resolve a resource directory across development, PyInstaller onedir,
+    PyInstaller onefile, and Windows installed environments.
+    """
+    candidates = []
+
+    # 1. PyInstaller frozen binary paths
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        # PyInstaller onefile unpacked directory
+        if hasattr(sys, "_MEIPASS"):
+            candidates.append(Path(sys._MEIPASS) / name)
+        # PyInstaller 6+ onedir bundle directory
+        candidates.append(exe_dir / "_internal" / name)
+        # Direct sibling of executable (e.g. Inno Setup app root)
+        candidates.append(exe_dir / name)
+
+    # 2. Source repository root
+    src_root = Path(__file__).resolve().parent.parent
+    candidates.append(src_root / name)
+
+    # 3. Current working directory
+    candidates.append(Path.cwd() / name)
+
+    for cand in candidates:
+        try:
+            if cand.exists() and cand.is_dir():
+                return cand.resolve()
+        except Exception:
+            pass
+
+    # Fallback to the first candidate and ensure it is created
+    target = candidates[0].resolve()
+    try:
+        target.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    return target
+
+
 if getattr(sys, "frozen", False):
-    BASE_DIR = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
-    APP_DIR = Path(sys.executable).parent
+    APP_DIR = Path(sys.executable).resolve().parent
+    BASE_DIR = APP_DIR
 else:
     BASE_DIR = Path(__file__).resolve().parent.parent
     APP_DIR = BASE_DIR
 
-ASSETS_DIR = BASE_DIR / "assets"
-MOBILE_UI_DIR = BASE_DIR / "mobile_ui"
-DOWNLOADS_DIR = Path.home() / "Downloads" / "AirBridge"
-CACHE_DIR = Path.home() / ".airbridge" / "cache"
+ASSETS_DIR = find_resource_dir("assets")
+MOBILE_UI_DIR = find_resource_dir("mobile_ui")
 
-# Ensure runtime directories exist
-DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
+# Runtime writable directories
 try:
-    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    DOWNLOADS_DIR = Path.home() / "Downloads" / "AirBridge"
+    DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
 except Exception:
-    pass
+    import tempfile
+    DOWNLOADS_DIR = Path(tempfile.gettempdir()) / "AirBridge" / "Downloads"
+    DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+try:
+    CACHE_DIR = Path.home() / ".airbridge" / "cache"
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    import tempfile
+    CACHE_DIR = Path(tempfile.gettempdir()) / "AirBridge" / "cache"
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Default Server Settings
 HOST = "0.0.0.0"
@@ -82,11 +130,12 @@ class AppSettings:
     def _init_defaults(self):
         self.auto_convert_heic: bool = True
         self.auto_sync_clipboard: bool = True
-        self.port: int = DEFAULT_PORT
         try:
-            from core.network import get_local_ip
+            from core.network import find_available_port, get_local_ip
+            self.port: int = find_available_port(DEFAULT_PORT)
             self.active_ip: str = get_local_ip()
         except Exception:
+            self.port: int = DEFAULT_PORT
             self.active_ip: str = "127.0.0.1"
         self.session_token: str = SESSION_TOKEN
         self.stream_queue: Dict[str, StreamItem] = {}
