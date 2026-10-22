@@ -55,7 +55,7 @@ if defined ISCC_PATH (
     if %errorlevel% equ 0 (
         echo.
         echo =======================================================
-        echo   [SUCCESS] AirBridge-Setup-v1.0.0.exe generated!
+        echo   [SUCCESS] AirBridge-Setup-v1.1.0.exe generated!
         echo   Ready for GitHub Release!
         echo =======================================================
     ) else (
