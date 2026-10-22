@@ -43,13 +43,75 @@ VIRTUAL_ADAPTER_KEYWORDS = [
     "hamachi",
     "radmin",
     "host-only",
+    "vpn",
 ]
 
+_adapter_desc_cache: Optional[Dict[str, str]] = None
 
-def is_virtual_adapter(name: str) -> bool:
-    """Check if network interface name belongs to a virtual or tunnel device."""
+
+def get_windows_adapter_descriptions() -> Dict[str, str]:
+    """Retrieve Windows network adapter friendly names mapped to their driver descriptions."""
+    global _adapter_desc_cache
+    if _adapter_desc_cache is not None:
+        return _adapter_desc_cache
+
+    _adapter_desc_cache = {}
+    import sys
+    if sys.platform == "win32":
+        try:
+            import subprocess
+            import json
+            cmd = "Get-NetAdapter | Select-Object Name, InterfaceDescription | ConvertTo-Json"
+            out = subprocess.check_output(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", cmd],
+                text=True,
+                timeout=2,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            )
+            data = json.loads(out)
+            if isinstance(data, dict):
+                data = [data]
+            for item in data:
+                name = item.get("Name", "")
+                desc = item.get("InterfaceDescription", "")
+                if name:
+                    _adapter_desc_cache[name.strip().lower()] = desc.strip().lower()
+        except Exception as e:
+            logger.debug(f"Could not query Get-NetAdapter descriptions: {e}")
+    return _adapter_desc_cache
+
+
+def is_virtual_adapter(name: str, description: str = "") -> bool:
+    """Check if network interface name or description belongs to a virtual or tunnel device."""
     lower_name = name.lower()
-    return any(keyword in lower_name for keyword in VIRTUAL_ADAPTER_KEYWORDS)
+    lower_desc = description.lower()
+    return any(
+        keyword in lower_name or keyword in lower_desc
+        for keyword in VIRTUAL_ADAPTER_KEYWORDS
+    )
+
+
+def is_port_in_use(port: int, host: str = "0.0.0.0") -> bool:
+    """Check if a TCP port is currently occupied."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind((host, port))
+            return False
+        except OSError:
+            return True
+
+
+def find_available_port(start_port: int = 8000, max_attempts: int = 30) -> int:
+    """Scan and return the first available open TCP port."""
+    for port in range(start_port, start_port + max_attempts):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind(("0.0.0.0", port))
+                return port
+            except OSError:
+                continue
+    return start_port
 
 
 def is_valid_lan_ip(ip: str) -> bool:
@@ -86,12 +148,15 @@ def get_all_lan_ips() -> List[Dict[str, Any]]:
     Active Wi-Fi adapters (Wi-Fi, WLAN) receive top priority for cross-device mobile sharing.
     """
     candidates: List[Dict[str, Any]] = []
+    descriptions = get_windows_adapter_descriptions()
+
     try:
         stats = psutil.net_if_stats()
         addrs = psutil.net_if_addrs()
 
         for iface_name, addr_list in addrs.items():
-            if is_virtual_adapter(iface_name):
+            desc = descriptions.get(iface_name.strip().lower(), "")
+            if is_virtual_adapter(iface_name, desc):
                 continue
 
             stat = stats.get(iface_name)
@@ -99,8 +164,9 @@ def get_all_lan_ips() -> List[Dict[str, Any]]:
                 continue
 
             lower = iface_name.lower()
-            is_wifi = any(w in lower for w in ["wi-fi", "wifi", "wlan", "wireless"])
-            is_eth = any(e in lower for e in ["ethernet", "eth", "gbe"])
+            lower_desc = desc.lower()
+            is_wifi = any(w in lower or w in lower_desc for w in ["wi-fi", "wifi", "wlan", "wireless", "802.11"])
+            is_eth = any(e in lower or e in lower_desc for e in ["ethernet", "eth", "gbe", "gigabit", "realtek", "intel"])
 
             for addr in addr_list:
                 if addr.family == socket.AF_INET and is_valid_lan_ip(addr.address):
