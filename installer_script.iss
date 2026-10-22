@@ -3,9 +3,9 @@
 ; Architected by Chathunga Bimsara
 
 #define MyAppName "AirBridge"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Chathunga Bimsara"
-#define MyAppURL "https://github.com/chathunga2007/AirBridge-Cross-Platform-File-Sharing-and-Universal-Clipboard-App"
+#define MyAppURL "https://github.com/chathunga2007/AirBridge-Cross-Platform-File-Sharing-and-Universal-Clipboard--Windows-iOS-Android-"
 #define MyAppExeName "AirBridge.exe"
 
 [Setup]
@@ -32,8 +32,10 @@ SolidCompression=yes
 WizardStyle=modern
 LicenseFile=LICENSE
 
-; Permissions (Installs cleanly without requiring administrator elevation)
-PrivilegesRequiredOverridesAllowed=dialog commandline
+; Permissions (Requires administrative elevation to configure Windows Firewall)
+PrivilegesRequired=admin
+CloseApplications=yes
+RestartApplications=no
 
 ; Visual Customizations
 WizardSizePercent=100
@@ -50,8 +52,8 @@ Name: "autostart"; Description: "Start AirBridge automatically when Windows star
 [Files]
 Source: "dist\AirBridge\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\AirBridge\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "assets\icon.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
-Source: "assets\AirBridge-Icon.png"; DestDir: "{app}\assets"; Flags: ignoreversion
+Source: "assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "mobile_ui\*"; DestDir: "{app}\mobile_ui"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
@@ -72,4 +74,8 @@ Root: HKCU; Subkey: "Software\Classes\Directory\shell\AirBridge"; ValueType: str
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\AirBridge\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""; Tasks: shellexplorer; Flags: uninsdeletekey
 
 [Run]
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""AirBridge Local Hub"" dir=in action=allow protocol=TCP localport=8000-8025 profile=any"; Flags: runhidden; StatusMsg: "Configuring Windows Firewall for cross-device sharing..."
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""AirBridge Local Hub"""; Flags: runhidden; RunOnceId: "RemoveAirBridgeFirewallRule"
