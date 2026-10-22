@@ -46,6 +46,7 @@ class BridgeSignals(QtCore.QObject):
     quick_note_received = Signal(str, str)
     browse_stream_requested = Signal()
     log_message = Signal(str, str)
+    server_status = Signal(bool, str)
 
 
 class DeviceCardWidget(QtWidgets.QFrame):
@@ -446,8 +447,9 @@ class FileItemRow(QtWidgets.QFrame):
 class MainWindow(QtWidgets.QMainWindow):
     """Primary Desktop Window with Modern Dark Glassmorphism Styling."""
 
-    def __init__(self):
+    def __init__(self, server_thread=None):
         super().__init__()
+        self.server_thread = server_thread
         self.signals = BridgeSignals()
         self._init_window()
         self._init_signals()
@@ -456,6 +458,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._init_telemetry()
         self._init_tray()
         self._load_pairing_qr()
+        self._check_initial_server_state()
 
     def _init_window(self):
         self.setWindowTitle(f"{APP_NAME} - Local AirDrop & Universal Clipboard Hub")
@@ -540,6 +543,33 @@ class MainWindow(QtWidgets.QMainWindow):
         self.signals.quick_note_received.connect(self._handle_quick_note_received)
         self.signals.browse_stream_requested.connect(self._select_stream_video)
         self.signals.log_message.connect(self._handle_log_message)
+        self.signals.server_status.connect(self._handle_server_status)
+
+        if self.server_thread:
+            self.server_thread.on_ready = lambda: self.signals.server_status.emit(True, "Online")
+            self.server_thread.on_error = lambda err: self.signals.server_status.emit(False, str(err))
+
+    def _check_initial_server_state(self):
+        if self.server_thread and self.server_thread.error_msg:
+            self._handle_server_status(False, self.server_thread.error_msg)
+        else:
+            self._handle_server_status(True, "Online")
+
+    @Slot(bool, str)
+    def _handle_server_status(self, is_online: bool, msg: str):
+        if hasattr(self, "server_status_badge"):
+            if is_online:
+                self.server_status_badge.setText(f"🟢 Server Online ({settings.active_ip}:{settings.port})")
+                self.server_status_badge.setStyleSheet(
+                    "font-size: 11px; color: #34d399; font-weight: 700; "
+                    "background: rgba(16, 185, 129, 0.12); padding: 5px 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);"
+                )
+            else:
+                self.server_status_badge.setText(f"🔴 Server Error: {msg}")
+                self.server_status_badge.setStyleSheet(
+                    "font-size: 11px; color: #ef4444; font-weight: 700; "
+                    "background: rgba(239, 68, 68, 0.15); padding: 5px 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.4);"
+                )
 
     def _threadsafe_on_file_received(self, file_data: Dict[str, Any]):
         self.signals.file_received.emit(file_data)
@@ -706,7 +736,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """)
 
         for iface in self.all_lan_ips:
-            self.ip_combo.addItem(f"{iface['label']} :8000", iface['ip'])
+            self.ip_combo.addItem(f"{iface['label']} :{settings.port}", iface['ip'])
 
         idx = self.ip_combo.findData(settings.active_ip)
         if idx >= 0:
@@ -730,6 +760,24 @@ class MainWindow(QtWidgets.QMainWindow):
         """)
         copy_url_btn.clicked.connect(self._copy_lan_url)
         url_layout.addWidget(copy_url_btn)
+
+        open_browser_btn = QtWidgets.QPushButton("🌐 Open")
+        open_browser_btn.setToolTip("Open AirBridge web interface directly in your PC browser")
+        open_browser_btn.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        open_browser_btn.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(16, 185, 129, 0.15);
+                color: #34d399;
+                border: 1px solid rgba(16, 185, 129, 0.3);
+                border-radius: 6px;
+                padding: 4px 10px;
+                font-size: 11px;
+                font-weight: 600;
+            }
+            QPushButton:hover { background-color: #059669; color: #ffffff; }
+        """)
+        open_browser_btn.clicked.connect(self._open_in_browser)
+        url_layout.addWidget(open_browser_btn)
 
         header_layout.addWidget(self.url_card)
 
@@ -832,6 +880,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.qr_url_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.qr_url_label.setWordWrap(True)
         qr_layout.addWidget(self.qr_url_label)
+
+        self.server_status_badge = QtWidgets.QLabel(f"🟢 Server Online ({settings.active_ip}:{settings.port})")
+        self.server_status_badge.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.server_status_badge.setStyleSheet(
+            "font-size: 11px; color: #34d399; font-weight: 700; "
+            "background: rgba(16, 185, 129, 0.12); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);"
+        )
+        qr_layout.addWidget(self.server_status_badge)
 
         qr_tip = QtWidgets.QLabel("⚠️ Ensure phone is connected to SAME Wi-Fi (not 4G/5G data)")
         qr_tip.setStyleSheet("font-size: 10px; color: #f59e0b; font-weight: 600; text-align: center;")
@@ -1276,6 +1332,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if new_ip and new_ip != settings.active_ip:
             settings.active_ip = new_ip
             self._load_pairing_qr()
+            if hasattr(self, "server_status_badge"):
+                self.server_status_badge.setText(f"🟢 Server Online ({settings.active_ip}:{settings.port})")
             self.status_lbl.setText(f"📶 Switched to {new_ip} • Pairing QR updated!")
 
     # -------------------------------------------------------------
@@ -1546,6 +1604,15 @@ class MainWindow(QtWidgets.QMainWindow):
             self.status_lbl.setText(f"🔗 Copied '{pairing_url}' to Windows clipboard!")
         except Exception:
             pass
+
+    def _open_in_browser(self):
+        try:
+            import webbrowser
+            pairing_url = settings.get_pairing_url()
+            webbrowser.open(pairing_url)
+            self.status_lbl.setText(f"🌐 Opened '{pairing_url}' in PC browser!")
+        except Exception as e:
+            self.status_lbl.setText(f"Could not open browser: {e}")
 
     def _on_heic_toggle_changed(self, state: int):
         settings.auto_convert_heic = bool(state == QtCore.Qt.CheckState.Checked.value or state == 2)
