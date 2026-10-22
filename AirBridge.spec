@@ -29,24 +29,11 @@ except Exception:
 # Hidden imports needed by dynamic ASGI / FastAPI / Uvicorn server & GUI hooks
 hiddenimports = [
     'uvicorn',
-    'uvicorn.logging',
-    'uvicorn.loops',
-    'uvicorn.loops.auto',
-    'uvicorn.protocols',
-    'uvicorn.protocols.http',
-    'uvicorn.protocols.http.auto',
-    'uvicorn.protocols.websockets',
-    'uvicorn.protocols.websockets.auto',
-    'uvicorn.lifespans',
-    'uvicorn.lifespans.on',
     'fastapi',
-    'fastapi.responses',
-    'fastapi.middleware.cors',
-    'fastapi.staticfiles',
     'starlette',
-    'starlette.requests',
-    'starlette.responses',
-    'starlette.middleware',
+    'anyio',
+    'anyio._backends._asyncio',
+    'h11',
     'websockets',
     'websockets.legacy',
     'websockets.legacy.server',
@@ -71,6 +58,14 @@ hiddenimports = [
     'win32com.propsys.propsys',
     'win32com.propsys.pscon',
 ]
+
+try:
+    hiddenimports += collect_submodules('uvicorn')
+    hiddenimports += collect_submodules('fastapi')
+    hiddenimports += collect_submodules('starlette')
+    hiddenimports += collect_submodules('anyio')
+except Exception:
+    pass
 
 a = Analysis(
     ['main.py'],
