@@ -209,7 +209,7 @@ AirBridge/
 
 ### Method 1: Windows Setup Wizard Installer (Recommended)
 
-1. Download **`AirBridge-Setup-v1.0.0.exe`** from the [GitHub Releases](https://github.com/chathunga2007/AirBridge-Cross-Platform-File-Sharing-and-Universal-Clipboard--Windows-iOS-Android-/releases) page.
+1. Download **`AirBridge-Setup-v1.0.0.exe`** from the [GitHub Releases](https://github.com/chathunga2007/AirBridge-Cross-Platform-File-Sharing-and-Universal-Clipboard/releases) page.
 2. Run the installer and click **Next**:
    - Creates Desktop & Start Menu shortcuts.
    - Registers Windows Explorer right-click context menu (*"Beam with AirBridge"*).
@@ -228,8 +228,8 @@ AirBridge/
 #### Steps
 ```powershell
 # 1. Clone the repository
-git clone https://github.com/chathunga2007/AirBridge-Cross-Platform-File-Sharing-and-Universal-Clipboard--Windows-iOS-Android-.git
-cd AirBridge-Cross-Platform-File-Sharing-and-Universal-Clipboard--Windows-iOS-Android-
+git clone https://github.com/chathunga2007/AirBridge-Cross-Platform-File-Sharing-and-Universal-Clipboard.git
+cd AirBridge-Cross-Platform-File-Sharing-and-Universal-Clipboard
 
 # 2. Install dependencies
 pip install -r requirements.txt
